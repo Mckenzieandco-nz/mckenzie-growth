@@ -753,6 +753,36 @@ Sarah Chen,Principal Surveyor,surveying,10+,Survey Operations,,95,195,sarah.chen
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-resource">
+  <div class="modal">
+    <div class="modal-title">Add / Edit Resource</div>
+    <div class="modal-sub">Appears in staff Personalised Training Plans</div>
+    <div class="form-group"><label class="form-label">Skill Name * <span style="font-size:.72rem;color:var(--muted)">(must match skill catalog exactly)</span></label><input class="form-input" id="res-skill" type="text" placeholder="e.g. AutoCAD"/></div>
+    <div class="form-group"><label class="form-label">Title *</label><input class="form-input" id="res-title" type="text" placeholder="Resource title"/></div>
+    <div class="form-group"><label class="form-label">Provider *</label><input class="form-input" id="res-provider" type="text" placeholder="e.g. LinkedIn Learning"/></div>
+    <div class="form-group"><label class="form-label">URL *</label><input class="form-input" id="res-url" type="url" placeholder="https://..."/></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Type</label>
+        <select class="form-select" id="res-type">
+          <option>Course</option><option>Video</option><option>Free</option><option>CPD</option><option>Certification</option><option>Reference</option><option>PDF</option><option>Slides</option><option>Link</option><option>Guide</option><option>Assessment</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Level</label>
+        <select class="form-select" id="res-level">
+          <option>Beginner</option><option>Intermediate</option><option>Advanced</option><option>All Levels</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Duration</label><input class="form-input" id="res-duration" type="text" placeholder="e.g. 8 hrs, Self-paced, Varies"/></div>
+    <input type="hidden" id="res-edit-skill"/>
+    <input type="hidden" id="res-edit-title"/>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-resource')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveResource()">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════════════════
 // SKILLS CATALOG
@@ -802,7 +832,7 @@ const IDEAL_TEAM={engineering:{'Principal Engineer':1,'Senior Engineer':2,'Engin
 // ══════════════════════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════════════════════
-let S={currentUser:null,users:[],materials:[],assignments:[],reviews:[],onetoones:[],skillsCatalog:null,cpdLog:[],view:'dashboard',adminUnlocked:false};
+let S={currentUser:null,users:[],materials:[],assignments:[],reviews:[],onetoones:[],skillsCatalog:null,resources:null,cpdLog:[],view:'dashboard',adminUnlocked:false};
 let pendingFileData=null;
 
 // ══════════════════════════════════════════════════════════
@@ -819,13 +849,14 @@ function save(){
   localStorage.setItem('mck_reviews',JSON.stringify(S.reviews));
   localStorage.setItem('mck_onetoones',JSON.stringify(S.onetoones));
   localStorage.setItem('mck_skills',JSON.stringify(S.skillsCatalog));
+  localStorage.setItem('mck_resources',JSON.stringify(S.resources));
   localStorage.setItem('mck_cpdlog', JSON.stringify(S.cpdLog));
   // Debounce API saves (300ms) so rapid changes don't flood the server
   if(_useAPI){
     clearTimeout(_saveTimer);
     _saveTimer=setTimeout(()=>{
       fetch('/api/saveData',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({users:S.users,materials:S.materials,assignments:S.assignments,reviews:S.reviews,onetoones:S.onetoones,skillsCatalog:S.skillsCatalog,cpdLog:S.cpdLog})
+        body:JSON.stringify({users:S.users,materials:S.materials,assignments:S.assignments,reviews:S.reviews,onetoones:S.onetoones,skillsCatalog:S.skillsCatalog,resources:S.resources,cpdLog:S.cpdLog})
       }).catch(err=>console.warn('API save failed, data safe in localStorage:',err));
     },300);
   }
@@ -840,6 +871,7 @@ async function load(){
       S.assignments=data.assignments||[];S.reviews=data.reviews||[];
       S.onetoones=data.onetoones||[];
       S.skillsCatalog=data.skillsCatalog||null;
+      S.resources=data.resources||null;
       S.cpdLog = data.cpdLog || [];
       _useAPI=true;
     }else throw new Error('API returned '+res.status);
@@ -851,6 +883,7 @@ async function load(){
     try{S.reviews=JSON.parse(localStorage.getItem('mck_reviews')||'[]');}catch(e){S.reviews=[];}
     try{S.onetoones=JSON.parse(localStorage.getItem('mck_onetoones')||'[]');}catch(e){S.onetoones=[];}
     try{S.skillsCatalog=JSON.parse(localStorage.getItem('mck_skills')||'null');}catch(e){S.skillsCatalog=null;}
+    try{S.resources=JSON.parse(localStorage.getItem('mck_resources')||'null');}catch(e){S.resources=null;}
     try{S.cpdLog=JSON.parse(localStorage.getItem('mck_cpdlog')||'[]');}catch(e){S.cpdLog=[];}
   }
   // Only seed demo data in local dev mode (not on live Azure site)
@@ -1117,7 +1150,7 @@ function renderDashboard(){
       </div>
     </div>
     ${gaps.length?`<div class="card mt-4"><div class="section-header"><h3>Top Skill Gaps</h3><button class="btn btn-primary btn-sm ml-auto" onclick="navigate('training',document.querySelector('[data-view=training]'))">Training Plan</button></div>
-      <table><thead><tr><th>Skill</th><th>Level</th><th>Top Resource</th></tr></thead><tbody>${gaps.map(g=>{const r=(RESOURCES[g.skill]||DEFAULT_RESOURCES)[0];return`<tr><td><strong>${g.skill}</strong></td><td>${renderDots(g.score)} <span class="badge ${g.score<=1?'badge-red':'badge-amber'}">${LEVEL_LABELS[g.score]}</span></td><td><a href="${r.url}" target="_blank" style="color:var(--moss);font-size:.78rem;text-decoration:none">${r.title}</a></td></tr>`;}).join('')}</tbody></table></div>`:''}
+      <table><thead><tr><th>Skill</th><th>Level</th><th>Top Resource</th></tr></thead><tbody>${gaps.map(g=>{const r=(activeResources()[g.skill]||DEFAULT_RESOURCES)[0];return`<tr><td><strong>${g.skill}</strong></td><td>${renderDots(g.score)} <span class="badge ${g.score<=1?'badge-red':'badge-amber'}">${LEVEL_LABELS[g.score]}</span></td><td><a href="${r.url}" target="_blank" style="color:var(--moss);font-size:.78rem;text-decoration:none">${r.title}</a></td></tr>`;}).join('')}</tbody></table></div>`:''}
     ${reports.length?`<div class="card mt-4"><div class="card-title">My Team &mdash; Direct Reports</div><table><thead><tr><th>Name</th><th>Role</th><th>Skills</th><th>Avg</th><th>Goals</th></tr></thead><tbody>${reports.map(r=>{const rt=Object.keys(r.skills||{}).length;const av=rt?(Object.values(r.skills).reduce((a,b)=>a+b,0)/rt).toFixed(1):'—';return`<tr><td><strong>${r.name}</strong></td><td>${r.role}</td><td>${rt}</td><td>${av}</td><td>${(r.goals||[]).filter(g=>g.status==='in-progress').length}</td></tr>`;}).join('')}</tbody></table></div>`:''}
     <div style="text-align:right;margin-top:24px"><button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button></div>
   `;
@@ -1151,7 +1184,7 @@ function setSkill(skill,level){if(!S.currentUser.skills)S.currentUser.skills={};
 // TRAINING PLAN
 // ══════════════════════════════════════════════════════════
 function renderTraining(){const u=S.currentUser;if(!u)return;const gaps=buildPlan(u);const hasRatings=Object.keys(u.skills||{}).length>0;document.getElementById('view-training').innerHTML=`<div class="page-title">Personalised Training Plan</div><div class="page-sub">Auto-generated from your skills and goals</div>${!hasRatings?`<div style="background:#fef3e0;border:1px solid var(--sand);border-radius:8px;padding:16px;margin-bottom:20px">Complete your <a href="#" onclick="navigate('skills',document.querySelector('[data-view=skills]'));return false" style="color:var(--moss)">Skills Assessment</a> first.</div>`:''} ${gaps.length===0&&hasRatings?`<div class="empty-state"><div class="empty-icon">🏆</div><p>No gaps. All rated skills are at level 4+.</p></div>`:''} ${gaps.map(g=>renderPlanSkill(g)).join('')}`;}
-function renderPlanSkill(gap){const resources=RESOURCES[gap.skill]||DEFAULT_RESOURCES;const companyMats=S.materials.filter(m=>m.skill===gap.skill||m.skill==='General');return`<div class="plan-skill"><div class="plan-skill-header" onclick="togglePlanSkill(this)"><div><div class="skill-name">${gap.skill}</div>${gap.goalLinked?`<div style="font-size:.68rem;color:rgba(255,255,255,.6);margin-top:1px">Linked to goal</div>`:''}</div>${gap.score>0?`<div style="display:flex;align-items:center;gap:6px">${renderDots(gap.score)}<span class="gap-badge">Current: ${LEVEL_LABELS[gap.score]}</span></div>`:`<span class="gap-badge">Not yet rated</span>`}<span style="color:rgba(255,255,255,.6);font-size:.78rem;transition:transform .2s">▼</span></div><div class="plan-skill-body">${companyMats.length?`<div style="margin-bottom:12px"><div style="font-size:.75rem;font-weight:700;color:var(--wood);margin-bottom:6px">Company Materials</div>${companyMats.map(m=>`<div class="resource-card" style="border-color:var(--moss)"><div class="resource-type-icon">${TYPE_ICONS[m.type]||'📄'}</div><div class="resource-body"><div class="resource-title">${m.title}</div><div class="resource-provider">${m.uploadedBy} · ${m.duration||''}</div></div><div class="resource-link"><button class="btn btn-primary btn-sm" onclick="viewMaterial('${m.id}')">Open</button></div></div>`).join('')}</div>`:''}<div style="font-size:.75rem;font-weight:700;color:var(--wood);margin-bottom:6px">External Resources</div>${resources.map(r=>`<div class="resource-card"><div class="resource-type-icon">${TYPE_ICONS[r.type]||'📚'}</div><div class="resource-body"><div class="resource-title">${r.title}</div><div class="resource-provider">${r.provider}</div><div class="resource-meta"><span class="badge badge-grey">${r.type}</span><span class="badge badge-navy">${r.level}</span><span class="text-xs text-muted">${r.duration}</span></div></div><div class="resource-link"><a href="${r.url}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Open</a></div></div>`).join('')}</div></div>`;}
+function renderPlanSkill(gap){const resources=activeResources()[gap.skill]||DEFAULT_RESOURCES;const companyMats=S.materials.filter(m=>m.skill===gap.skill||m.skill==='General');return`<div class="plan-skill"><div class="plan-skill-header" onclick="togglePlanSkill(this)"><div><div class="skill-name">${gap.skill}</div>${gap.goalLinked?`<div style="font-size:.68rem;color:rgba(255,255,255,.6);margin-top:1px">Linked to goal</div>`:''}</div>${gap.score>0?`<div style="display:flex;align-items:center;gap:6px">${renderDots(gap.score)}<span class="gap-badge">Current: ${LEVEL_LABELS[gap.score]}</span></div>`:`<span class="gap-badge">Not yet rated</span>`}<span style="color:rgba(255,255,255,.6);font-size:.78rem;transition:transform .2s">▼</span></div><div class="plan-skill-body">${companyMats.length?`<div style="margin-bottom:12px"><div style="font-size:.75rem;font-weight:700;color:var(--wood);margin-bottom:6px">Company Materials</div>${companyMats.map(m=>`<div class="resource-card" style="border-color:var(--moss)"><div class="resource-type-icon">${TYPE_ICONS[m.type]||'📄'}</div><div class="resource-body"><div class="resource-title">${m.title}</div><div class="resource-provider">${m.uploadedBy} · ${m.duration||''}</div></div><div class="resource-link"><button class="btn btn-primary btn-sm" onclick="viewMaterial('${m.id}')">Open</button></div></div>`).join('')}</div>`:''}<div style="font-size:.75rem;font-weight:700;color:var(--wood);margin-bottom:6px">External Resources</div>${resources.map(r=>`<div class="resource-card"><div class="resource-type-icon">${TYPE_ICONS[r.type]||'📚'}</div><div class="resource-body"><div class="resource-title">${r.title}</div><div class="resource-provider">${r.provider}</div><div class="resource-meta"><span class="badge badge-grey">${r.type}</span><span class="badge badge-navy">${r.level}</span><span class="text-xs text-muted">${r.duration}</span></div></div><div class="resource-link"><a href="${r.url}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Open</a></div></div>`).join('')}</div></div>`;}
 function togglePlanSkill(header){const body=header.nextElementSibling;body.classList.toggle('open');header.querySelector('span:last-child').style.transform=body.classList.contains('open')?'rotate(180deg)':'';}
 
 // ══════════════════════════════════════════════════════════
@@ -1417,9 +1450,9 @@ function renderMatrix(){const users=S.users;if(!users.length){document.getElemen
 // ══════════════════════════════════════════════════════════
 let adminTab='staff';
 function renderAdmin(){if(!S.adminUnlocked){document.getElementById('view-admin').innerHTML='<div class="empty-state"><p>You need admin rights to access this section.</p></div>';return;}
-  document.getElementById('view-admin').innerHTML=`<div class="page-title">Admin Panel</div><div class="page-sub">Manage staff, materials, org structure and team insights</div><div class="tabs" style="margin-bottom:24px;flex-wrap:wrap"><div class="tab ${adminTab==='staff'?'active':''}" onclick="adminTab='staff';renderAdmin()">Staff</div><div class="tab ${adminTab==='skills'?'active':''}" onclick="adminTab='skills';renderAdmin()">Skills</div><div class="tab ${adminTab==='materials'?'active':''}" onclick="adminTab='materials';renderAdmin()">Materials</div><div class="tab ${adminTab==='matrix'?'active':''}" onclick="adminTab='matrix';renderAdmin()">Matrix</div><div class="tab ${adminTab==='orgchart'?'active':''}" onclick="adminTab='orgchart';renderAdmin()">Org Chart</div><div class="tab ${adminTab==='rates'?'active':''}" onclick="adminTab='rates';renderAdmin()">Rates</div><div class="tab ${adminTab==='optimise'?'active':''}" onclick="adminTab='optimise';renderAdmin()">AI Optimise</div><div class="tab ${adminTab==='allreviews'?'active':''}" onclick="adminTab='allreviews';renderAdmin()">Reviews</div><div class="tab ${adminTab==='data'?'active':''}" onclick="adminTab='data';renderAdmin()">Data</div></div><div id="admin-tab-content"></div>`;
+  document.getElementById('view-admin').innerHTML=`<div class="page-title">Admin Panel</div><div class="page-sub">Manage staff, materials, org structure and team insights</div><div class="tabs" style="margin-bottom:24px;flex-wrap:wrap"><div class="tab ${adminTab==='staff'?'active':''}" onclick="adminTab='staff';renderAdmin()">Staff</div><div class="tab ${adminTab==='skills'?'active':''}" onclick="adminTab='skills';renderAdmin()">Skills</div><div class="tab ${adminTab==='resources'?'active':''}" onclick="adminTab='resources';renderAdmin()">Resources</div><div class="tab ${adminTab==='materials'?'active':''}" onclick="adminTab='materials';renderAdmin()">Materials</div><div class="tab ${adminTab==='matrix'?'active':''}" onclick="adminTab='matrix';renderAdmin()">Matrix</div><div class="tab ${adminTab==='orgchart'?'active':''}" onclick="adminTab='orgchart';renderAdmin()">Org Chart</div><div class="tab ${adminTab==='rates'?'active':''}" onclick="adminTab='rates';renderAdmin()">Rates</div><div class="tab ${adminTab==='optimise'?'active':''}" onclick="adminTab='optimise';renderAdmin()">AI Optimise</div><div class="tab ${adminTab==='allreviews'?'active':''}" onclick="adminTab='allreviews';renderAdmin()">Reviews</div><div class="tab ${adminTab==='data'?'active':''}" onclick="adminTab='data';renderAdmin()">Data</div></div><div id="admin-tab-content"></div>`;
   const c=document.getElementById('admin-tab-content');
-  ({staff:renderAdminStaff,skills:renderAdminSkills,materials:renderAdminMats,matrix:renderAdminMatrix,orgchart:renderAdminOrg,rates:renderAdminRates,optimise:renderAdminOptimise,allreviews:renderAdminReviews,data:renderAdminData})[adminTab]?.(c);
+  ({staff:renderAdminStaff,skills:renderAdminSkills,resources:renderAdminResources,materials:renderAdminMats,matrix:renderAdminMatrix,orgchart:renderAdminOrg,rates:renderAdminRates,optimise:renderAdminOptimise,allreviews:renderAdminReviews,data:renderAdminData})[adminTab]?.(c);
 }
 
 function renderAdminStaff(el){el.innerHTML=`<div class="section-header"><h3>Staff (${S.users.length})</h3><div class="ml-auto" style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm" onclick="openBulkImport()">⇪ Bulk Import</button><button class="btn btn-primary btn-sm" onclick="openNewProfileModal()">+ Add</button></div></div><table><thead><tr><th>Name</th><th>Role</th><th>Team</th><th>Email</th><th>Admin</th><th>Skills</th><th>Actions</th></tr></thead><tbody>${S.users.map(u=>`<tr><td><strong>${u.name}</strong></td><td>${u.role}</td><td>${u.team||'—'}</td><td><code style="font-size:.72rem;background:var(--sand-pale);padding:2px 6px;border-radius:3px">${u.email||u.username||'—'}</code></td><td>${u.isAdmin?'<span class="badge badge-green">Admin</span>':'<span class="text-muted" style="font-size:.75rem">—</span>'}</td><td>${Object.keys(u.skills||{}).length}</td><td style="white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="editProfile('${u.id}')">Edit</button> <button class="btn btn-secondary btn-sm" onclick="switchToUser('${u.id}')">Switch</button> <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}')">Del</button></td></tr>`).join('')}</tbody></table><div class="card mt-4"><div class="section-header"><h3>Assignments (${S.assignments.length})</h3></div><table><thead><tr><th>Material</th><th>To</th><th>By</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>${S.assignments.length?S.assignments.map(a=>{const mat=S.materials.find(m=>m.id===a.matId)||{title:'Deleted'};const usr=S.users.find(u=>u.id===a.userId)||{name:'?'};return`<tr><td>${mat.title}</td><td>${usr.name}</td><td>${a.assignedBy}</td><td>${a.dueDate||'—'}</td><td><span class="badge ${a.status==='completed'?'badge-green':'badge-amber'}">${cap(a.status)}</span></td><td><button class="btn btn-danger btn-sm" onclick="removeAssignment('${a.id}')">✕</button></td></tr>`;}).join(''):'<tr><td colspan="6" class="text-muted" style="text-align:center">None</td></tr>'}</tbody></table></div>`;}
@@ -1590,6 +1623,101 @@ function addSkillDiscipline(){
 function resetSkillsCatalog(){
   if(!confirm('Reset the skills catalog to the built-in defaults? Any custom skills you have added will be lost.'))return;
   S.skillsCatalog=null;save();renderAdmin();
+}
+
+// ══════════════════════════════════════════════════════════
+// EXTERNAL RESOURCES ADMIN
+// ══════════════════════════════════════════════════════════
+function renderAdminResources(el){
+  const res=activeResources();
+  const skills=Object.keys(res).sort();
+  el.innerHTML=`
+    <div class="section-header">
+      <div>
+        <h3>External Resources</h3>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:2px">These appear in staff Personalised Training Plans</div>
+      </div>
+      <button class="btn btn-primary btn-sm ml-auto" onclick="openResourceModal()">＋ Add Resource</button>
+    </div>
+    ${skills.length===0?`<div class="empty-state"><p>No resources configured. Click <strong>＋ Add Resource</strong> to get started.</p></div>`:''}
+    ${skills.map(skill=>`
+      <div class="card mb-4">
+        <div class="section-header" style="margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <strong>${esc(skill)}</strong>
+            <span class="badge badge-grey">${res[skill].length}</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${res[skill].map(r=>`
+            <div class="resource-card" style="align-items:flex-start">
+              <div class="resource-type-icon">${TYPE_ICONS[r.type]||'📚'}</div>
+              <div class="resource-body" style="flex:1">
+                <div class="resource-title">${esc(r.title)}</div>
+                <div class="resource-provider">${esc(r.provider)}</div>
+                <div class="resource-meta">
+                  <span class="badge badge-grey">${esc(r.type)}</span>
+                  <span class="badge badge-navy">${esc(r.level)}</span>
+                  <span class="text-xs text-muted">${esc(r.duration)}</span>
+                  <a href="${esc(r.url)}" target="_blank" rel="noopener" style="font-size:.72rem;color:var(--moss);word-break:break-all">${esc(r.url)}</a>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0">
+                <button class="btn btn-secondary btn-sm" onclick="openResourceModal(${JSON.stringify(r).replace(/"/g,'&quot;')},'${esc(skill)}')">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteResource('${esc(skill)}','${esc(r.title)}')">Del</button>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`).join('')}
+    <p style="font-size:.75rem;color:var(--muted);margin-top:16px">Skills with no resources set will fall back to the built-in defaults.</p>`;
+}
+
+function openResourceModal(r,skill){
+  if(typeof r==='string')try{r=JSON.parse(r);}catch(e){r=null;}
+  document.getElementById('res-skill').value=skill||'';
+  document.getElementById('res-title').value=r?.title||'';
+  document.getElementById('res-provider').value=r?.provider||'';
+  document.getElementById('res-url').value=r?.url||'';
+  document.getElementById('res-type').value=r?.type||'Course';
+  document.getElementById('res-duration').value=r?.duration||'';
+  document.getElementById('res-level').value=r?.level||'Beginner';
+  document.getElementById('res-edit-skill').value=skill||'';
+  document.getElementById('res-edit-title').value=r?.title||'';
+  document.getElementById('modal-resource').classList.add('open');
+}
+
+function saveResource(){
+  const skill=document.getElementById('res-skill').value.trim();
+  const title=document.getElementById('res-title').value.trim();
+  const provider=document.getElementById('res-provider').value.trim();
+  const url=document.getElementById('res-url').value.trim();
+  const type=document.getElementById('res-type').value;
+  const duration=document.getElementById('res-duration').value.trim();
+  const level=document.getElementById('res-level').value;
+  const editSkill=document.getElementById('res-edit-skill').value;
+  const editTitle=document.getElementById('res-edit-title').value;
+  if(!skill||!title||!provider||!url){alert('Skill, title, provider and URL are required.');return;}
+  const res=JSON.parse(JSON.stringify(activeResources()));
+  if(editSkill&&editTitle){
+    if(res[editSkill])res[editSkill]=res[editSkill].filter(r=>r.title!==editTitle);
+    if(res[editSkill]&&res[editSkill].length===0)delete res[editSkill];
+  }
+  if(!res[skill])res[skill]=[];
+  res[skill].push({title,provider,url,type,duration,level});
+  S.resources=res;
+  save();
+  closeModal('modal-resource');
+  renderAdmin();
+}
+
+function deleteResource(skill,title){
+  if(!confirm('Delete this resource?'))return;
+  const res=JSON.parse(JSON.stringify(activeResources()));
+  if(res[skill])res[skill]=res[skill].filter(r=>r.title!==title);
+  if(res[skill]&&res[skill].length===0)delete res[skill];
+  S.resources=res;
+  save();
+  renderAdmin();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1774,6 +1902,7 @@ function exportCSV(){const allSkills=[...new Set(S.users.flatMap(u=>Object.keys(
 // HELPERS
 // ══════════════════════════════════════════════════════════
 function activeCatalog(){return S.skillsCatalog||SKILLS;}
+function activeResources(){return S.resources||RESOURCES;}
 function getSkillsCatalog(d){const cat=activeCatalog();if(d==='both'){const r={};for(const[c,s]of Object.entries(cat.engineering||{}))r['Eng: '+c]=s;for(const[c,s]of Object.entries(cat.surveying||{}))r['Surv: '+c]=s;return r;}return cat[d]||cat.engineering||{};}
 function getSkillsFlat(d){return Object.values(getSkillsCatalog(d)).flat();}
 function buildPlan(u){const goalSkills=new Set();(u.goals||[]).filter(g=>g.status!=='completed').forEach(g=>{if(g.skills)g.skills.split(',').map(s=>s.trim()).filter(Boolean).forEach(s=>goalSkills.add(s));});const gaps=[];getSkillsFlat(u.discipline).forEach(skill=>{const score=(u.skills||{})[skill]||0;if(score>0&&score<=3)gaps.push({skill,score,goalLinked:goalSkills.has(skill)});else if(score===0&&goalSkills.has(skill))gaps.push({skill,score:0,goalLinked:true});});return gaps.sort((a,b)=>(b.goalLinked-a.goalLinked)||a.score-b.score);}

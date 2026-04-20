@@ -20,6 +20,7 @@ module.exports = async function (context, req) {
     // Store skillsCatalog and any other settings in the settings container
     const settingsData = {};
     if (data.skillsCatalog !== undefined) settingsData.skillsCatalog = data.skillsCatalog;
+    if (data.resources !== undefined) settingsData.resources = data.resources;
     if (Object.keys(settingsData).length > 0) {
       const settingsContainer = database.container('settings');
       await settingsContainer.items.upsert({ id: 'all', data: settingsData });
