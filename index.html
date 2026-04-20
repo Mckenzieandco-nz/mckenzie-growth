@@ -839,7 +839,7 @@ const IDEAL_TEAM={engineering:{'Principal Engineer':1,'Senior Engineer':2,'Engin
 // ══════════════════════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════════════════════
-let S={currentUser:null,users:[],materials:[],assignments:[],reviews:[],onetoones:[],view:'dashboard',adminUnlocked:false};
+let S={currentUser:null,users:[],materials:[],assignments:[],reviews:[],onetoones:[],skillsCatalog:null,view:'dashboard',adminUnlocked:false};
 let pendingFileData=null;
 
 // ══════════════════════════════════════════════════════════
@@ -855,12 +855,13 @@ function save(){
   localStorage.setItem('mck_assignments',JSON.stringify(S.assignments));
   localStorage.setItem('mck_reviews',JSON.stringify(S.reviews));
   localStorage.setItem('mck_onetoones',JSON.stringify(S.onetoones));
+  localStorage.setItem('mck_skills',JSON.stringify(S.skillsCatalog));
   // Debounce API saves (300ms) so rapid changes don't flood the server
   if(_useAPI){
     clearTimeout(_saveTimer);
     _saveTimer=setTimeout(()=>{
       fetch('/api/saveData',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({users:S.users,materials:S.materials,assignments:S.assignments,reviews:S.reviews,onetoones:S.onetoones})
+        body:JSON.stringify({users:S.users,materials:S.materials,assignments:S.assignments,reviews:S.reviews,onetoones:S.onetoones,skillsCatalog:S.skillsCatalog})
       }).catch(err=>console.warn('API save failed, data safe in localStorage:',err));
     },300);
   }
@@ -874,6 +875,7 @@ async function load(){
       S.users=data.users||[];S.materials=data.materials||[];
       S.assignments=data.assignments||[];S.reviews=data.reviews||[];
       S.onetoones=data.onetoones||[];
+      S.skillsCatalog=data.skillsCatalog||null;
       _useAPI=true;
     }else throw new Error('API returned '+res.status);
   }catch(e){
@@ -883,6 +885,7 @@ async function load(){
     try{S.assignments=JSON.parse(localStorage.getItem('mck_assignments')||'[]');}catch(e){S.assignments=[];}
     try{S.reviews=JSON.parse(localStorage.getItem('mck_reviews')||'[]');}catch(e){S.reviews=[];}
     try{S.onetoones=JSON.parse(localStorage.getItem('mck_onetoones')||'[]');}catch(e){S.onetoones=[];}
+    try{S.skillsCatalog=JSON.parse(localStorage.getItem('mck_skills')||'null');}catch(e){S.skillsCatalog=null;}
   }
   // Only seed demo data in local dev mode (not on live Azure site)
   if(!S.users.length && !_useAPI) seedDemo();
@@ -1316,9 +1319,9 @@ function renderMatrix(){const users=S.users;if(!users.length){document.getElemen
 // ══════════════════════════════════════════════════════════
 let adminTab='staff';
 function renderAdmin(){if(!S.adminUnlocked){document.getElementById('view-admin').innerHTML='<div class="empty-state"><p>You need admin rights to access this section.</p></div>';return;}
-  document.getElementById('view-admin').innerHTML=`<div class="page-title">Admin Panel</div><div class="page-sub">Manage staff, materials, org structure and team insights</div><div class="tabs" style="margin-bottom:24px"><div class="tab ${adminTab==='staff'?'active':''}" onclick="adminTab='staff';renderAdmin()">Staff</div><div class="tab ${adminTab==='materials'?'active':''}" onclick="adminTab='materials';renderAdmin()">Materials</div><div class="tab ${adminTab==='matrix'?'active':''}" onclick="adminTab='matrix';renderAdmin()">Matrix</div><div class="tab ${adminTab==='orgchart'?'active':''}" onclick="adminTab='orgchart';renderAdmin()">Org Chart</div><div class="tab ${adminTab==='rates'?'active':''}" onclick="adminTab='rates';renderAdmin()">Rates</div><div class="tab ${adminTab==='optimise'?'active':''}" onclick="adminTab='optimise';renderAdmin()">AI Optimise</div><div class="tab ${adminTab==='allreviews'?'active':''}" onclick="adminTab='allreviews';renderAdmin()">Reviews</div><div class="tab ${adminTab==='data'?'active':''}" onclick="adminTab='data';renderAdmin()">Data</div></div><div id="admin-tab-content"></div>`;
+  document.getElementById('view-admin').innerHTML=`<div class="page-title">Admin Panel</div><div class="page-sub">Manage staff, materials, org structure and team insights</div><div class="tabs" style="margin-bottom:24px;flex-wrap:wrap"><div class="tab ${adminTab==='staff'?'active':''}" onclick="adminTab='staff';renderAdmin()">Staff</div><div class="tab ${adminTab==='skills'?'active':''}" onclick="adminTab='skills';renderAdmin()">Skills</div><div class="tab ${adminTab==='materials'?'active':''}" onclick="adminTab='materials';renderAdmin()">Materials</div><div class="tab ${adminTab==='matrix'?'active':''}" onclick="adminTab='matrix';renderAdmin()">Matrix</div><div class="tab ${adminTab==='orgchart'?'active':''}" onclick="adminTab='orgchart';renderAdmin()">Org Chart</div><div class="tab ${adminTab==='rates'?'active':''}" onclick="adminTab='rates';renderAdmin()">Rates</div><div class="tab ${adminTab==='optimise'?'active':''}" onclick="adminTab='optimise';renderAdmin()">AI Optimise</div><div class="tab ${adminTab==='allreviews'?'active':''}" onclick="adminTab='allreviews';renderAdmin()">Reviews</div><div class="tab ${adminTab==='data'?'active':''}" onclick="adminTab='data';renderAdmin()">Data</div></div><div id="admin-tab-content"></div>`;
   const c=document.getElementById('admin-tab-content');
-  ({staff:renderAdminStaff,materials:renderAdminMats,matrix:renderAdminMatrix,orgchart:renderAdminOrg,rates:renderAdminRates,optimise:renderAdminOptimise,allreviews:renderAdminReviews,data:renderAdminData})[adminTab]?.(c);
+  ({staff:renderAdminStaff,skills:renderAdminSkills,materials:renderAdminMats,matrix:renderAdminMatrix,orgchart:renderAdminOrg,rates:renderAdminRates,optimise:renderAdminOptimise,allreviews:renderAdminReviews,data:renderAdminData})[adminTab]?.(c);
 }
 
 function renderAdminStaff(el){el.innerHTML=`<div class="section-header"><h3>Staff (${S.users.length})</h3><div class="ml-auto" style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm" onclick="openBulkImport()">⇪ Bulk Import</button><button class="btn btn-primary btn-sm" onclick="openNewProfileModal()">+ Add</button></div></div><table><thead><tr><th>Name</th><th>Role</th><th>Team</th><th>Email</th><th>Admin</th><th>Skills</th><th>Actions</th></tr></thead><tbody>${S.users.map(u=>`<tr><td><strong>${u.name}</strong></td><td>${u.role}</td><td>${u.team||'—'}</td><td><code style="font-size:.72rem;background:var(--sand-pale);padding:2px 6px;border-radius:3px">${u.email||u.username||'—'}</code></td><td>${u.isAdmin?'<span class="badge badge-green">Admin</span>':'<span class="text-muted" style="font-size:.75rem">—</span>'}</td><td>${Object.keys(u.skills||{}).length}</td><td style="white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="editProfile('${u.id}')">Edit</button> <button class="btn btn-secondary btn-sm" onclick="switchToUser('${u.id}')">Switch</button> <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}')">Del</button></td></tr>`).join('')}</tbody></table><div class="card mt-4"><div class="section-header"><h3>Assignments (${S.assignments.length})</h3></div><table><thead><tr><th>Material</th><th>To</th><th>By</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>${S.assignments.length?S.assignments.map(a=>{const mat=S.materials.find(m=>m.id===a.matId)||{title:'Deleted'};const usr=S.users.find(u=>u.id===a.userId)||{name:'?'};return`<tr><td>${mat.title}</td><td>${usr.name}</td><td>${a.assignedBy}</td><td>${a.dueDate||'—'}</td><td><span class="badge ${a.status==='completed'?'badge-green':'badge-amber'}">${cap(a.status)}</span></td><td><button class="btn btn-danger btn-sm" onclick="removeAssignment('${a.id}')">✕</button></td></tr>`;}).join(''):'<tr><td colspan="6" class="text-muted" style="text-align:center">None</td></tr>'}</tbody></table></div>`;}
@@ -1368,6 +1371,128 @@ function renderAdminReviews(el){const allRevs=S.reviews.sort((a,b)=>b.date.local
     <div class="section-header mt-4"><h3>All 1:1s (${allOtos.length})</h3></div><table><thead><tr><th>Staff</th><th>With</th><th>Date</th><th>Mood</th><th>Topics</th></tr></thead><tbody>${allOtos.map(o=>{const u=S.users.find(x=>x.id===o.userId)||{name:'?'};const w=S.users.find(x=>x.id===o.withId)||{name:'?'};return`<tr><td><strong>${u.name}</strong></td><td>${w.name}</td><td>${fmtDate(o.date)}</td><td><span class="badge ${MOOD_COLORS[o.mood]}">${MOOD_ICONS[o.mood]||''} ${cap(o.mood)}</span></td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.topics||'—')}</td></tr>`;}).join('')||'<tr><td colspan="5" class="text-muted" style="text-align:center">None</td></tr>'}</tbody></table>`;}
 
 function renderAdminData(el){el.innerHTML=`<div class="two-col"><div class="card"><div class="card-title">Export CSV</div><div class="card-sub">Download skills matrix</div><button class="btn btn-secondary" onclick="exportCSV()">Export</button></div><div class="card"><div class="card-title">Bulk Import Staff</div><div class="card-sub">Upload many staff at once</div><button class="btn btn-secondary" onclick="openBulkImport()">Open</button></div><div class="card"><div class="card-title">Reset Data</div><div class="card-sub">Clear all profiles and data</div><button class="btn btn-danger" onclick="resetAll()">Reset</button></div></div>`;}
+
+// ══════════════════════════════════════════════════════════
+// SKILLS CATALOG ADMIN
+// ══════════════════════════════════════════════════════════
+let _skillsDisc='engineering'; // active discipline tab in skills admin
+function renderAdminSkills(el){
+  const cat=JSON.parse(JSON.stringify(activeCatalog())); // deep copy
+  const discs=Object.keys(cat);
+  el.innerHTML=`
+    <div class="section-header">
+      <h3>Skills Catalog</h3>
+      <div class="ml-auto" style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="addSkillDiscipline()">+ Discipline</button>
+        <button class="btn btn-secondary btn-sm" onclick="resetSkillsCatalog()">Reset to defaults</button>
+      </div>
+    </div>
+    <p style="font-size:.8rem;color:var(--muted);margin-bottom:16px">These skills appear in staff assessments, the skills matrix, and training plans. Changes affect the whole company.</p>
+    <div class="tabs" style="margin-bottom:20px;width:auto">
+      ${discs.map(d=>`<div class="tab ${d===_skillsDisc?'active':''}" onclick="_skillsDisc='${d}';renderAdmin()">${cap(d)}</div>`).join('')}
+    </div>
+    <div id="skills-disc-body"></div>`;
+  renderSkillsDiscBody(cat[_skillsDisc]||{},el);
+}
+function renderSkillsDiscBody(discData,parentEl){
+  const el=parentEl.querySelector('#skills-disc-body');
+  if(!el)return;
+  const cats=Object.keys(discData);
+  el.innerHTML=cats.map(cat=>`
+    <div class="card mb-4">
+      <div class="section-header" style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <strong>${esc(cat)}</strong>
+          <span class="badge badge-grey">${(discData[cat]||[]).length} skills</span>
+        </div>
+        <div class="ml-auto" style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" onclick="renameSkillCategory('${_skillsDisc}','${esc(cat)}')">Rename</button>
+          <button class="btn btn-secondary btn-sm" onclick="addSkill('${_skillsDisc}','${esc(cat)}')">+ Skill</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSkillCategory('${_skillsDisc}','${esc(cat)}')">Del</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${(discData[cat]||[]).map(skill=>`
+          <div style="display:inline-flex;align-items:center;gap:6px;background:var(--sand-pale);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:.78rem">
+            <span>${esc(skill)}</span>
+            <button onclick="renameSkill('${_skillsDisc}','${esc(cat)}','${esc(skill)}')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:.75rem;padding:0 2px" title="Rename">✏️</button>
+            <button onclick="deleteSkill('${_skillsDisc}','${esc(cat)}','${esc(skill)}')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:.75rem;padding:0 2px" title="Remove">✕</button>
+          </div>`).join('')}
+      </div>
+    </div>`).join('')+`
+    <button class="btn btn-secondary" onclick="addSkillCategory('${_skillsDisc}')">+ Add Category to ${cap(_skillsDisc)}</button>`;
+}
+function getEditableCatalog(){return JSON.parse(JSON.stringify(activeCatalog()));}
+function saveSkillsCatalog(cat){S.skillsCatalog=cat;save();renderAdmin();}
+function addSkillCategory(disc){
+  const name=prompt('Category name (e.g. "Geotechnical"):');
+  if(!name||!name.trim())return;
+  const cat=getEditableCatalog();
+  if(!cat[disc])cat[disc]={};
+  if(cat[disc][name.trim()]){alert('Category already exists.');return;}
+  cat[disc][name.trim()]=[];
+  saveSkillsCatalog(cat);
+}
+function renameSkillCategory(disc,oldName){
+  const name=prompt('New category name:',oldName);
+  if(!name||!name.trim()||name.trim()===oldName)return;
+  const cat=getEditableCatalog();
+  const skills=cat[disc][oldName]||[];
+  delete cat[disc][oldName];
+  cat[disc][name.trim()]=skills;
+  saveSkillsCatalog(cat);
+}
+function deleteSkillCategory(disc,catName){
+  const skills=(activeCatalog()[disc]||{})[catName]||[];
+  if(!confirm(`Delete category "${catName}" and its ${skills.length} skills? This doesn't remove skills already rated on staff profiles.`))return;
+  const cat=getEditableCatalog();
+  delete cat[disc][catName];
+  saveSkillsCatalog(cat);
+}
+function addSkill(disc,catName){
+  const name=prompt(`Add skill to "${catName}":`);
+  if(!name||!name.trim())return;
+  const cat=getEditableCatalog();
+  if(!cat[disc][catName])cat[disc][catName]=[];
+  if(cat[disc][catName].includes(name.trim())){alert('Skill already exists in this category.');return;}
+  cat[disc][catName].push(name.trim());
+  saveSkillsCatalog(cat);
+}
+function renameSkill(disc,catName,oldName){
+  const name=prompt('New skill name:',oldName);
+  if(!name||!name.trim()||name.trim()===oldName)return;
+  const cat=getEditableCatalog();
+  const idx=cat[disc][catName].indexOf(oldName);
+  if(idx>=0)cat[disc][catName][idx]=name.trim();
+  // Update existing staff skill ratings to use new name
+  S.users.forEach(u=>{
+    if(u.skills&&u.skills[oldName]!==undefined){
+      u.skills[name.trim()]=u.skills[oldName];
+      delete u.skills[oldName];
+    }
+  });
+  saveSkillsCatalog(cat);
+}
+function deleteSkill(disc,catName,skillName){
+  if(!confirm(`Remove "${skillName}" from the catalog? Existing staff ratings for this skill are kept but won't appear in new assessments.`))return;
+  const cat=getEditableCatalog();
+  cat[disc][catName]=(cat[disc][catName]||[]).filter(s=>s!==skillName);
+  saveSkillsCatalog(cat);
+}
+function addSkillDiscipline(){
+  const name=prompt('New discipline name (e.g. "Architecture"):');
+  if(!name||!name.trim())return;
+  const key=name.trim().toLowerCase().replace(/\s+/g,'_');
+  const cat=getEditableCatalog();
+  if(cat[key]){alert('Discipline already exists.');return;}
+  cat[key]={};
+  _skillsDisc=key;
+  saveSkillsCatalog(cat);
+}
+function resetSkillsCatalog(){
+  if(!confirm('Reset the skills catalog to the built-in defaults? Any custom skills you have added will be lost.'))return;
+  S.skillsCatalog=null;save();renderAdmin();
+}
 
 // ══════════════════════════════════════════════════════════
 // BULK IMPORT STAFF
@@ -1550,7 +1675,8 @@ function exportCSV(){const allSkills=[...new Set(S.users.flatMap(u=>Object.keys(
 // ══════════════════════════════════════════════════════════
 // HELPERS
 // ══════════════════════════════════════════════════════════
-function getSkillsCatalog(d){if(d==='both'){const r={};for(const[c,s]of Object.entries(SKILLS.engineering))r['Eng: '+c]=s;for(const[c,s]of Object.entries(SKILLS.surveying))r['Surv: '+c]=s;return r;}return SKILLS[d]||SKILLS.engineering;}
+function activeCatalog(){return S.skillsCatalog||SKILLS;}
+function getSkillsCatalog(d){const cat=activeCatalog();if(d==='both'){const r={};for(const[c,s]of Object.entries(cat.engineering||{}))r['Eng: '+c]=s;for(const[c,s]of Object.entries(cat.surveying||{}))r['Surv: '+c]=s;return r;}return cat[d]||cat.engineering||{};}
 function getSkillsFlat(d){return Object.values(getSkillsCatalog(d)).flat();}
 function buildPlan(u){const goalSkills=new Set();(u.goals||[]).filter(g=>g.status!=='completed').forEach(g=>{if(g.skills)g.skills.split(',').map(s=>s.trim()).filter(Boolean).forEach(s=>goalSkills.add(s));});const gaps=[];getSkillsFlat(u.discipline).forEach(skill=>{const score=(u.skills||{})[skill]||0;if(score>0&&score<=3)gaps.push({skill,score,goalLinked:goalSkills.has(skill)});else if(score===0&&goalSkills.has(skill))gaps.push({skill,score:0,goalLinked:true});});return gaps.sort((a,b)=>(b.goalLinked-a.goalLinked)||a.score-b.score);}
 function topGaps(u,n){return Object.entries(u.skills||{}).filter(([,v])=>v<=2).sort((a,b)=>a[1]-b[1]).slice(0,n).map(([skill,score])=>({skill,score}));}

@@ -2,19 +2,24 @@ const { database } = require('../shared/cosmos');
 
 module.exports = async function (context, req) {
   try {
-    const collections = ['users', 'materials', 'assignments', 'reviews', 'onetoones'];
+    const collections = ['users', 'materials', 'assignments', 'reviews', 'onetoones', 'settings'];
     const result = {};
 
     for (const name of collections) {
       const container = database.container(name);
       try {
         const { resource } = await container.item('all', 'all').read();
-        result[name] = resource ? resource.data : [];
+        result[name] = resource ? resource.data : (name === 'settings' ? {} : []);
       } catch (e) {
         // Container might be empty — that's fine
         result[name] = [];
       }
     }
+
+    // Flatten settings into top-level keys
+    const settings = result.settings || {};
+    delete result.settings;
+    Object.assign(result, settings);
 
     context.res = {
       status: 200,
