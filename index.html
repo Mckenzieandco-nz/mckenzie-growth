@@ -204,9 +204,8 @@ tr:last-child td{border-bottom:none}
 .modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
 
 /* Login screen */
-#login-screen,#setup-screen{display:none;position:fixed;inset:0;background:var(--off-white);z-index:300;align-items:center;justify-content:center;flex-direction:column;gap:28px}
+#login-screen{display:none;position:fixed;inset:0;background:var(--off-white);z-index:300;align-items:center;justify-content:center;flex-direction:column;gap:28px}
 #login-screen.open{display:flex}
-#setup-screen.open{display:flex}
 .login-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:36px;width:90%;max-width:400px;box-shadow:0 8px 30px rgba(61,57,53,.08)}
 .login-card h3{font-size:.9rem;font-weight:700;color:var(--wood);margin-bottom:20px}
 .login-logo{margin-bottom:8px}
@@ -348,41 +347,6 @@ tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- First-time setup screen -->
-<div id="setup-screen">
-  <svg style="height:44px;width:auto;margin-bottom:4px"><use href="#mck-logo"/></svg>
-  <div class="login-tagline">Welcome! Let's set up your profile</div>
-  <div class="login-card" style="max-width:440px">
-    <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="setup-name" readonly/></div>
-    <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="setup-email" readonly/></div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Role *</label>
-        <select class="form-select" id="setup-role">
-          <option value="">Select&hellip;</option>
-          <option>Graduate Engineer</option><option>Engineer</option><option>Senior Engineer</option><option>Principal Engineer</option>
-          <option>Graduate Surveyor</option><option>Surveyor</option><option>Senior Surveyor</option><option>Principal Surveyor</option>
-          <option>Project Manager</option><option>Director</option>
-        </select>
-      </div>
-      <div class="form-group"><label class="form-label">Discipline *</label>
-        <select class="form-select" id="setup-disc">
-          <option value="">Select&hellip;</option>
-          <option value="engineering">Engineering</option><option value="surveying">Surveying</option><option value="both">Both</option>
-        </select>
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Team</label><input class="form-input" id="setup-team" placeholder="e.g. Civil Engineering"/></div>
-      <div class="form-group"><label class="form-label">Experience</label>
-        <select class="form-select" id="setup-exp">
-          <option value="<1">Less than 1 year</option><option value="1-3">1–3 years</option>
-          <option value="3-5">3–5 years</option><option value="5-10">5–10 years</option><option value="10+">10+ years</option>
-        </select>
-      </div>
-    </div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px;font-size:.86rem;margin-top:8px" onclick="completeSetup()">Get Started</button>
-  </div>
-</div>
 
 <!-- Profile switcher (admin only) -->
 <div id="profile-screen">
@@ -960,7 +924,6 @@ let _msUser=null; // {name, email} from Microsoft
 
 function showLoginScreen(){
   document.getElementById('login-screen').classList.add('open');
-  document.getElementById('setup-screen').classList.remove('open');
 }
 
 
@@ -1000,41 +963,19 @@ async function doMicrosoftLogin(){
   if(existing){
     // Existing user — log them in
     document.getElementById('login-screen').classList.remove('open');
-    document.getElementById('setup-screen').classList.remove('open');
     S.adminUnlocked=!!existing.isAdmin;
     selectUser(existing.id);
     navigate('dashboard',document.querySelector('[data-view=dashboard]'));
   }else{
-    // First-time user — show setup screen
-    document.getElementById('login-screen').classList.remove('open');
-    document.getElementById('setup-screen').classList.add('open');
-    document.getElementById('setup-name').value=_msUser.name;
-    document.getElementById('setup-email').value=_msUser.email;
+    // No profile found — show a message, don't let them in
+    const status=document.getElementById('login-status');
+    status.style.display='';
+    status.style.color='var(--red)';
+    status.innerHTML=`Your account (<strong>${_msUser.email}</strong>) hasn't been set up yet.<br>Please contact your administrator to get access.`;
+    document.getElementById('login-screen').classList.add('open');
   }
 }
 
-function completeSetup(){
-  const role=document.getElementById('setup-role').value;
-  const disc=document.getElementById('setup-disc').value;
-  if(!role||!disc){alert('Please select your role and discipline.');return;}
-  // First user gets admin rights
-  // Grant admin if nobody in the system has admin yet (first real user on live site)
-  const isFirstUser=S.users.length===0||!S.users.some(u=>u.isAdmin);
-  const newUser={
-    id:'u'+Date.now(),name:_msUser.name,email:_msUser.email,
-    role,discipline:disc,experience:document.getElementById('setup-exp').value,
-    team:document.getElementById('setup-team').value.trim(),
-    manager:'',costRate:0,chargeRate:0,
-    username:_msUser.email,password:'',isAdmin:isFirstUser,
-    goals:[],skills:{},
-  };
-  S.users.push(newUser);save();
-  document.getElementById('setup-screen').classList.remove('open');
-  S.adminUnlocked=isFirstUser;
-  selectUser(newUser.id);
-  updateAdminNav();
-  navigate('dashboard',document.querySelector('[data-view=dashboard]'));
-}
 
 function logout(){
   S.currentUser=null;S.adminUnlocked=false;
