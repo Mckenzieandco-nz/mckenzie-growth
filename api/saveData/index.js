@@ -8,7 +8,7 @@ module.exports = async function (context, req) {
       return;
     }
 
-    const collections = ['users', 'materials', 'assignments', 'reviews', 'onetoones', 'cpdLog'];
+    const collections = ['users', 'materials', 'assignments', 'reviews', 'onetoones', 'cpdLog', 'disclosures'];
 
     for (const name of collections) {
       if (data[name] !== undefined) {
@@ -21,6 +21,8 @@ module.exports = async function (context, req) {
     const settingsData = {};
     if (data.skillsCatalog !== undefined) settingsData.skillsCatalog = data.skillsCatalog;
     if (data.resources !== undefined) settingsData.resources = data.resources;
+    if (data.technicalExperts !== undefined) settingsData.technicalExperts = data.technicalExperts;
+    if (data.disclosureContact !== undefined) settingsData.disclosureContact = data.disclosureContact;
     if (Object.keys(settingsData).length > 0) {
       const settingsContainer = database.container('settings');
       await settingsContainer.items.upsert({ id: 'all', data: settingsData });

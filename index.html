@@ -365,7 +365,8 @@ tr:last-child td{border-bottom:none}
   <div class="nav-item" data-view="mycourses" onclick="navigate('mycourses',this)"><span class="icon">🎓</span> My Courses <span class="nav-badge" id="nb-assigned" style="display:none">0</span></div>
   <div class="nav-item" data-view="reviews" onclick="navigate('reviews',this)"><span class="icon">📝</span> Reviews</div>
   <div class="nav-item" data-view="onetoones" onclick="navigate('onetoones',this)"><span class="icon">🤝</span> One-to-Ones</div>
-  <div class="nav-item" data-view="experts" onclick="navigate('experts',this)"><span class="icon">🏆</span> Experts</div>
+  <div class="nav-item" data-view="disclosures" onclick="navigate('disclosures',this)"><span class="icon">🔒</span> Raise a Concern</div>
+  <div class="nav-item" data-view="experts" onclick="navigate('experts',this)"><span class="icon">🏆</span> Technical Experts</div>
   <div class="nav-section exec-only" style="display:none">Management</div>
   <div class="nav-item exec-only" data-view="myteam" onclick="navigate('myteam',this)" style="display:none"><span class="icon">👥</span> My Team</div>
   <div class="nav-section admin-only" style="display:none">Admin</div>
@@ -381,6 +382,7 @@ tr:last-child td{border-bottom:none}
   <div id="view-mycourses" style="display:none"></div>
   <div id="view-reviews" style="display:none"></div>
   <div id="view-onetoones" style="display:none"></div>
+  <div id="view-disclosures" class="view" style="display:none"></div>
   <div id="view-experts" style="display:none"></div>
   <div id="view-materials" style="display:none"></div>
   <div id="view-matrix" style="display:none"></div>
@@ -766,6 +768,10 @@ Sarah Chen,Principal Surveyor,surveying,10+,Survey Operations,,95,195,sarah.chen
     <div class="form-group"><label class="form-label">Discussion Topics</label><textarea class="form-textarea" id="oto-topics" placeholder="What was discussed..."></textarea></div>
     <div class="form-group"><label class="form-label">Action Items</label><textarea class="form-textarea" id="oto-actions" placeholder="Actions agreed..."></textarea></div>
     <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="oto-notes" placeholder="Any other notes..."></textarea></div>
+    <div class="form-group">
+      <label class="form-label">Document / File Link (optional)</label>
+      <input class="form-input" id="oto-fileurl" placeholder="Paste a link to any meeting notes, agenda or attachment…" type="url"/>
+    </div>
     <input type="hidden" id="oto-edit-id"/>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-oto')">Cancel</button>
@@ -895,7 +901,7 @@ const MCK_LEVELS=[
 // ══════════════════════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════════════════════
-let S={currentUser:null,users:[],materials:[],assignments:[],reviews:[],onetoones:[],skillsCatalog:null,resources:null,cpdLog:[],view:'dashboard',adminUnlocked:false};
+let S={currentUser:null,users:[],materials:[],assignments:[],reviews:[],onetoones:[],skillsCatalog:null,resources:null,cpdLog:[],technicalExperts:[],disclosures:[],disclosureContact:'',view:'dashboard',adminUnlocked:false};
 let pendingFileData=null;
 
 // ══════════════════════════════════════════════════════════
@@ -914,12 +920,15 @@ function save(){
   localStorage.setItem('mck_skills',JSON.stringify(S.skillsCatalog));
   localStorage.setItem('mck_resources',JSON.stringify(S.resources));
   localStorage.setItem('mck_cpdlog', JSON.stringify(S.cpdLog));
+  localStorage.setItem('mck_techexperts', JSON.stringify(S.technicalExperts));
+  localStorage.setItem('mck_disclosures', JSON.stringify(S.disclosures));
+  localStorage.setItem('mck_disccontact', S.disclosureContact||'');
   // Debounce API saves (300ms) so rapid changes don't flood the server
   if(_useAPI){
     clearTimeout(_saveTimer);
     _saveTimer=setTimeout(()=>{
       fetch('/api/saveData',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({users:S.users,materials:S.materials,assignments:S.assignments,reviews:S.reviews,onetoones:S.onetoones,skillsCatalog:S.skillsCatalog,resources:S.resources,cpdLog:S.cpdLog})
+        body:JSON.stringify({users:S.users,materials:S.materials,assignments:S.assignments,reviews:S.reviews,onetoones:S.onetoones,skillsCatalog:S.skillsCatalog,resources:S.resources,cpdLog:S.cpdLog,technicalExperts:S.technicalExperts,disclosures:S.disclosures,disclosureContact:S.disclosureContact})
       }).catch(err=>console.warn('API save failed, data safe in localStorage:',err));
     },300);
   }
@@ -936,6 +945,9 @@ async function load(){
       S.skillsCatalog=data.skillsCatalog||null;
       S.resources=data.resources||null;
       S.cpdLog = data.cpdLog || [];
+      S.technicalExperts=data.technicalExperts||[];
+      S.disclosures=data.disclosures||[];
+      S.disclosureContact=data.disclosureContact||'';
       _useAPI=true;
     }else throw new Error('API returned '+res.status);
   }catch(e){
@@ -948,11 +960,14 @@ async function load(){
     try{S.skillsCatalog=JSON.parse(localStorage.getItem('mck_skills')||'null');}catch(e){S.skillsCatalog=null;}
     try{S.resources=JSON.parse(localStorage.getItem('mck_resources')||'null');}catch(e){S.resources=null;}
     try{S.cpdLog=JSON.parse(localStorage.getItem('mck_cpdlog')||'[]');}catch(e){S.cpdLog=[];}
+    try{S.technicalExperts=JSON.parse(localStorage.getItem('mck_techexperts')||'[]');}catch(e){S.technicalExperts=[];}
+    try{S.disclosures=JSON.parse(localStorage.getItem('mck_disclosures')||'[]');}catch(e){S.disclosures=[];}
+    try{S.disclosureContact=localStorage.getItem('mck_disccontact')||'';}catch(e){S.disclosureContact='';}
   }
   // Only seed demo data in local dev mode (not on live Azure site)
   if(!S.users.length && !_useAPI) seedDemo();
   // Migrations
-  S.users.forEach(u=>{if(typeof u.isAdmin==='undefined')u.isAdmin=false;if(!u.careerLevel)u.careerLevel=1;if(!u.pendingSkills)u.pendingSkills={};});
+  S.users.forEach(u=>{if(typeof u.isAdmin==='undefined')u.isAdmin=false;if(!u.careerLevel)u.careerLevel=1;if(!u.pendingSkills)u.pendingSkills={};if(!u.nextReviewRequest)u.nextReviewRequest=null;});
   S.materials.forEach(m=>{if(!Array.isArray(m.discTags))m.discTags=[];if(!Array.isArray(m.senTags))m.senTags=[];});
   save();
 }
@@ -1172,13 +1187,13 @@ function navigate(view,el){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   if(el)el.classList.add('active');
   else document.querySelectorAll('.nav-item').forEach(n=>{if(n.dataset.view===view)n.classList.add('active');});
-  const views=['dashboard','goals','skills','mycareer','training','mycourses','reviews','onetoones','experts','materials','matrix','admin','myteam'];
+  const views=['dashboard','goals','skills','mycareer','training','mycourses','reviews','onetoones','disclosures','experts','materials','matrix','admin','myteam'];
   views.forEach(v=>document.getElementById('view-'+v).style.display=v===view?'':'none');
   renderView(view);
 }
 function renderAll(){renderView(S.view);}
 function renderView(v){
-  const m={dashboard:renderDashboard,goals:renderGoals,skills:renderSkills,mycareer:renderMyCareer,training:renderTraining,mycourses:renderMyCourses,reviews:renderReviews,onetoones:renderOneToOnes,experts:renderExperts,materials:renderMaterials,matrix:renderMatrix,admin:renderAdmin,myteam:renderMyTeam};
+  const m={dashboard:renderDashboard,goals:renderGoals,skills:renderSkills,mycareer:renderMyCareer,training:renderTraining,mycourses:renderMyCourses,reviews:renderReviews,onetoones:renderOneToOnes,disclosures:renderDisclosures,experts:renderExperts,materials:renderMaterials,matrix:renderMatrix,admin:renderAdmin,myteam:renderMyTeam};
   if(m[v])m[v]();
 }
 
@@ -1481,9 +1496,37 @@ function exportCpdReport(year){
 // ══════════════════════════════════════════════════════════
 // PERFORMANCE REVIEWS
 // ══════════════════════════════════════════════════════════
-function renderReviews(){const u=S.currentUser;if(!u)return;const myRevs=S.reviews.filter(r=>r.userId===u.id).sort((a,b)=>b.date.localeCompare(a.date));const givenRevs=S.reviews.filter(r=>r.reviewerId===u.id).sort((a,b)=>b.date.localeCompare(a.date));
+function renderReviews(){
+  const u=S.currentUser;if(!u)return;
+  const myRevs=S.reviews.filter(r=>r.userId===u.id).sort((a,b)=>b.date.localeCompare(a.date));
+  const givenRevs=S.reviews.filter(r=>r.reviewerId===u.id).sort((a,b)=>b.date.localeCompare(a.date));
   const revHtml=list=>list.map(r=>{const reviewer=r.reviewerId?S.users.find(x=>x.id===r.reviewerId):null;const reviewee=S.users.find(x=>x.id===r.userId);const scores=r.scores||{};const scoreEntries=Object.entries(scores).filter(([,v])=>v);return`<div class="review-item"><div class="review-header"><div style="flex:1"><div style="font-weight:700;font-size:.88rem">${r.period} — ${r.type}</div><div style="font-size:.72rem;color:var(--muted)">${fmtDate(r.date)}${reviewer?' · Reviewer: '+reviewer.name:''}${reviewee&&r.reviewerId===u.id?' · For: '+reviewee.name:''}</div></div>${scores.overall?`<div style="text-align:center"><div style="font-size:.6rem;color:var(--muted);text-transform:uppercase;font-weight:700">Overall</div><div style="font-size:1.3rem;font-weight:800;color:${scores.overall>=4?'var(--moss)':scores.overall>=3?'var(--wood)':'var(--amber)'}">${scores.overall}/5</div></div>`:''}<button class="btn btn-danger btn-sm" onclick="deleteReview('${r.id}')">✕</button></div>${scoreEntries.length?`<div class="review-scores">${scoreEntries.map(([k,v])=>`<div class="review-score-item"><div class="rs-label">${cap(k)}</div><div class="rs-val">${v}</div></div>`).join('')}</div>`:''}${r.strengths?`<div class="review-body" style="margin-top:10px"><strong>Strengths:</strong> ${esc(r.strengths)}</div>`:''}${r.improvements?`<div class="review-body"><strong>Areas for Improvement:</strong> ${esc(r.improvements)}</div>`:''}${r.nextGoals?`<div class="review-body"><strong>Next Period Goals:</strong> ${esc(r.nextGoals)}</div>`:''}${r.comments?`<div class="review-body"><strong>Comments:</strong> ${esc(r.comments)}</div>`:''}</div>`;}).join('');
-  document.getElementById('view-reviews').innerHTML=`<div class="page-title">Performance Reviews</div><div class="page-sub">Your formal performance review history</div><div style="display:flex;gap:10px;margin-bottom:20px"><button class="btn btn-primary" onclick="openReviewModal()">+ New Review</button><div style="margin-left:auto;display:flex;gap:8px;align-items:center"><span class="badge badge-green">${myRevs.length} received</span><span class="badge badge-navy">${givenRevs.length} given</span></div></div>${myRevs.length?`<h3 style="font-size:.86rem;font-weight:700;color:var(--wood);margin-bottom:12px">My Reviews</h3>${revHtml(myRevs)}`:''}${givenRevs.length?`<h3 style="font-size:.86rem;font-weight:700;color:var(--moss);margin-bottom:12px;margin-top:20px">Reviews I've Given</h3>${revHtml(givenRevs)}`:''}${!myRevs.length&&!givenRevs.length?`<div class="empty-state"><div class="empty-icon">📝</div><p>No reviews yet.</p><br><button class="btn btn-primary" onclick="openReviewModal()">+ Add First Review</button></div>`:''}`;}
+  const req=u.nextReviewRequest;
+  const managerUser=u.manager?S.users.find(x=>x.id===u.manager):null;
+  const scheduleSection=`<div class="card" style="margin-bottom:20px;border-left:3px solid var(--moss)">
+  <div class="section-header"><h3 style="font-size:.95rem;font-weight:700">📅 6-Monthly Review</h3></div>
+  ${req&&req.status==='confirmed'?`
+    <div style="background:#e8f5e8;border-radius:6px;padding:10px 14px;margin-bottom:10px">
+      <strong style="color:var(--moss)">✅ Review confirmed: ${req.confirmedDate}</strong>
+    </div>
+    <div style="font-size:.8rem;margin-bottom:8px"><strong>Your agenda items:</strong><br>${(req.staffAgenda||[]).map(i=>`• ${i}`).join('<br>')||'None added'}</div>
+    <div style="font-size:.8rem"><strong>Manager's agenda items:</strong><br>${(req.managerAgenda||[]).map(i=>`• ${i}`).join('<br>')||'None added yet'}</div>
+    <button class="btn btn-secondary btn-sm" style="margin-top:10px" onclick="cancelReviewRequest()">Cancel Request</button>
+  `:req&&req.status==='requested'?`
+    <div style="background:#fef3e0;border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:.8rem">
+      <strong>⏳ Awaiting confirmation</strong> — requested for ${req.requestedDate}${managerUser?' with '+managerUser.name:''}
+    </div>
+    <div style="font-size:.8rem;margin-bottom:8px"><strong>Your agenda items:</strong><br>${(req.staffAgenda||[]).map(i=>`• ${i}`).join('<br>')||'None'}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${managerUser?.email?`<a href="mailto:${managerUser.email}?subject=${encodeURIComponent('6-Monthly Review Request — '+u.name)}&body=${encodeURIComponent('Hi '+managerUser.name.split(' ')[0]+',\n\nI would like to schedule my 6-monthly review. My preferred date is '+req.requestedDate+'.\n\nMy agenda items:\n'+(req.staffAgenda||[]).map(i=>'• '+i).join('\n')+'\n\nPlease confirm via McKenzie Growth.\n\nRegards,\n'+u.name)}" class="btn btn-primary btn-sm" style="text-decoration:none">📧 Re-send to Manager</a>`:''}
+      <button class="btn btn-secondary btn-sm" onclick="cancelReviewRequest()">Cancel Request</button>
+    </div>
+  `:`
+    <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Request your next 6-monthly review with your manager. You can add agenda items and your manager will confirm the date.</p>
+    <button class="btn btn-primary btn-sm" onclick="openReviewRequestModal()">📅 Request 6-Month Review</button>
+  `}
+</div>`;
+  document.getElementById('view-reviews').innerHTML=`<div class="page-title">Performance Reviews</div><div class="page-sub">Your formal performance review history</div><div style="display:flex;gap:10px;margin-bottom:20px"><button class="btn btn-primary" onclick="openReviewModal()">+ New Review</button><div style="margin-left:auto;display:flex;gap:8px;align-items:center"><span class="badge badge-green">${myRevs.length} received</span><span class="badge badge-navy">${givenRevs.length} given</span></div></div>${scheduleSection}${myRevs.length?`<h3 style="font-size:.86rem;font-weight:700;color:var(--wood);margin-bottom:12px">My Reviews</h3>${revHtml(myRevs)}`:''}${givenRevs.length?`<h3 style="font-size:.86rem;font-weight:700;color:var(--moss);margin-bottom:12px;margin-top:20px">Reviews I've Given</h3>${revHtml(givenRevs)}`:''}${!myRevs.length&&!givenRevs.length?`<div class="empty-state"><div class="empty-icon">📝</div><p>No reviews yet.</p><br><button class="btn btn-primary" onclick="openReviewModal()">+ Add First Review</button></div>`:''}`;}
 function openReviewModal(){document.getElementById('review-modal-title').textContent='New Performance Review';document.getElementById('rev-edit-id').value='';['rev-strengths','rev-improvements','rev-nextgoals','rev-comments'].forEach(i=>document.getElementById(i).value='');['rev-s-technical','rev-s-communication','rev-s-teamwork','rev-s-leadership','rev-s-initiative','rev-s-overall'].forEach(i=>document.getElementById(i).value='');const sel=document.getElementById('rev-reviewer');sel.innerHTML='<option value="">Select reviewer...</option>';S.users.forEach(u=>{sel.innerHTML+=`<option value="${u.id}">${u.name} (${u.role})</option>`;});document.getElementById('modal-review').classList.add('open');}
 function saveReview(){const scores={technical:parseInt(document.getElementById('rev-s-technical').value)||0,communication:parseInt(document.getElementById('rev-s-communication').value)||0,teamwork:parseInt(document.getElementById('rev-s-teamwork').value)||0,leadership:parseInt(document.getElementById('rev-s-leadership').value)||0,initiative:parseInt(document.getElementById('rev-s-initiative').value)||0,overall:parseInt(document.getElementById('rev-s-overall').value)||0};S.reviews.push({id:'r'+Date.now(),userId:S.currentUser.id,period:document.getElementById('rev-period').value,type:document.getElementById('rev-type').value,reviewerId:document.getElementById('rev-reviewer').value,date:new Date().toISOString().split('T')[0],scores,strengths:document.getElementById('rev-strengths').value.trim(),improvements:document.getElementById('rev-improvements').value.trim(),nextGoals:document.getElementById('rev-nextgoals').value.trim(),comments:document.getElementById('rev-comments').value.trim()});save();closeModal('modal-review');renderReviews();}
 function deleteReview(id){if(!confirm('Delete this review?'))return;S.reviews=S.reviews.filter(r=>r.id!==id);save();renderReviews();}
@@ -1491,17 +1534,110 @@ function deleteReview(id){if(!confirm('Delete this review?'))return;S.reviews=S.
 // ══════════════════════════════════════════════════════════
 // ONE-TO-ONES
 // ══════════════════════════════════════════════════════════
-function renderOneToOnes(){const u=S.currentUser;if(!u)return;const myOtos=S.onetoones.filter(o=>o.userId===u.id||o.withId===u.id).sort((a,b)=>b.date.localeCompare(a.date));
-  document.getElementById('view-onetoones').innerHTML=`<div class="page-title">One-to-Ones</div><div class="page-sub">Track your one-to-one meetings</div><div style="display:flex;gap:10px;margin-bottom:20px"><button class="btn btn-primary" onclick="openOtoModal()">+ Record 1:1</button><span class="badge badge-green ml-auto" style="align-self:center">${myOtos.length} logged</span></div>${myOtos.length?myOtos.map(o=>{const other=o.userId===u.id?S.users.find(x=>x.id===o.withId):S.users.find(x=>x.id===o.userId);const d=new Date(o.date);return`<div class="oto-item"><div class="oto-date"><div class="oto-day">${d.getDate()}</div><div class="oto-month">${d.toLocaleString('en-AU',{month:'short'})}</div></div><div class="oto-body"><div class="oto-title">1:1 with ${other?other.name:'Unknown'} <span class="badge ${MOOD_COLORS[o.mood]}">${MOOD_ICONS[o.mood]||''} ${cap(o.mood)}</span></div><div class="oto-meta">${fmtDate(o.date)}${other?' · '+other.role:''}</div>${o.topics?`<div class="oto-notes"><strong>Topics:</strong> ${esc(o.topics)}</div>`:''}${o.actions?`<div class="oto-notes"><strong>Actions:</strong> ${esc(o.actions)}</div>`:''}${o.notes?`<div class="oto-notes" style="color:var(--muted);font-style:italic;margin-top:4px">${esc(o.notes)}</div>`:''}</div><button class="btn btn-danger btn-sm" onclick="deleteOto('${o.id}')">✕</button></div>`;}).join(''):`<div class="empty-state"><div class="empty-icon">🤝</div><p>No one-to-ones recorded.</p><br><button class="btn btn-primary" onclick="openOtoModal()">+ Record First 1:1</button></div>`}`;}
-function openOtoModal(){document.getElementById('oto-modal-title').textContent='Record One-to-One';document.getElementById('oto-edit-id').value='';document.getElementById('oto-date').value=new Date().toISOString().split('T')[0];['oto-topics','oto-actions','oto-notes'].forEach(i=>document.getElementById(i).value='');document.getElementById('oto-mood').value='positive';const sel=document.getElementById('oto-with');sel.innerHTML='<option value="">Select person...</option>';S.users.filter(u=>u.id!==S.currentUser.id).forEach(u=>{sel.innerHTML+=`<option value="${u.id}">${u.name} (${u.role})</option>`;});document.getElementById('modal-oto').classList.add('open');}
-function saveOto(){const date=document.getElementById('oto-date').value;const withId=document.getElementById('oto-with').value;if(!date||!withId){alert('Date and person required.');return;}S.onetoones.push({id:'oto'+Date.now(),userId:S.currentUser.id,withId,date,mood:document.getElementById('oto-mood').value,topics:document.getElementById('oto-topics').value.trim(),actions:document.getElementById('oto-actions').value.trim(),notes:document.getElementById('oto-notes').value.trim()});save();closeModal('modal-oto');renderOneToOnes();}
+function renderOneToOnes(){
+  const u=S.currentUser;if(!u)return;
+  const myOtos=S.onetoones.filter(o=>o.userId===u.id||o.withId===u.id).sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('view-onetoones').innerHTML=`
+    <div class="page-title">One-to-Ones</div>
+    <div class="page-sub">Track your one-to-one meetings and follow up on actions</div>
+    <div style="display:flex;gap:10px;margin-bottom:20px">
+      <button class="btn btn-primary" onclick="openOtoModal()">+ Record 1:1</button>
+      <span class="badge badge-green ml-auto" style="align-self:center">${myOtos.length} logged</span>
+    </div>
+    ${myOtos.length?myOtos.map(o=>{
+      const other=o.userId===u.id?S.users.find(x=>x.id===o.withId):S.users.find(x=>x.id===o.userId);
+      const d=new Date(o.date);
+      const toEmail=other?.email||'';
+      const subj=encodeURIComponent('1:1 Action Items — '+o.date);
+      const body=encodeURIComponent('Hi '+(other?.name?.split(' ')[0]||'')+',\n\nAction items from our 1:1 on '+o.date+':\n\n'+(o.actions||'(no actions recorded)')+'\n\nRegards,\n'+u.name);
+      const emailHref=toEmail?`mailto:${toEmail}?subject=${subj}&body=${body}`:'';
+      return`<div class="oto-item">
+        <div class="oto-date"><div class="oto-day">${d.getDate()}</div><div class="oto-month">${d.toLocaleString('en-AU',{month:'short'})}</div></div>
+        <div class="oto-body">
+          <div class="oto-title">1:1 with ${other?other.name:'Unknown'} <span class="badge ${MOOD_COLORS[o.mood]}">${MOOD_ICONS[o.mood]||''} ${cap(o.mood)}</span></div>
+          <div class="oto-meta">${fmtDate(o.date)}${other?' · '+other.role:''}</div>
+          ${o.topics?`<div class="oto-notes"><strong>Topics:</strong> ${esc(o.topics)}</div>`:''}
+          ${o.actions?`<div class="oto-notes"><strong>Actions:</strong> ${esc(o.actions)}</div>`:''}
+          ${o.notes?`<div class="oto-notes" style="color:var(--muted);font-style:italic;margin-top:4px">${esc(o.notes)}</div>`:''}
+          ${o.fileUrl?`<div style="margin-top:6px"><a href="${o.fileUrl}" target="_blank" rel="noopener" style="color:var(--moss);font-size:.78rem;text-decoration:none">📎 Attached document</a></div>`:''}
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+            ${emailHref?`<a href="${emailHref}" class="btn btn-secondary btn-sm" style="text-decoration:none">📧 Email Actions</a>`:''}
+          </div>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="deleteOto('${o.id}')">✕</button>
+      </div>`;
+    }).join(''):`<div class="empty-state"><div class="empty-icon">🤝</div><p>No one-to-ones recorded.</p><br><button class="btn btn-primary" onclick="openOtoModal()">+ Record First 1:1</button></div>`}
+  `;}
+function openOtoModal(){document.getElementById('oto-modal-title').textContent='Record One-to-One';document.getElementById('oto-edit-id').value='';document.getElementById('oto-date').value=new Date().toISOString().split('T')[0];['oto-topics','oto-actions','oto-notes'].forEach(i=>document.getElementById(i).value='');document.getElementById('oto-fileurl').value='';document.getElementById('oto-mood').value='positive';const sel=document.getElementById('oto-with');sel.innerHTML='<option value="">Select person...</option>';S.users.filter(u=>u.id!==S.currentUser.id).forEach(u=>{sel.innerHTML+=`<option value="${u.id}">${u.name} (${u.role})</option>`;});document.getElementById('modal-oto').classList.add('open');}
+function saveOto(){const date=document.getElementById('oto-date').value;const withId=document.getElementById('oto-with').value;if(!date||!withId){alert('Date and person required.');return;}S.onetoones.push({id:'oto'+Date.now(),userId:S.currentUser.id,withId,date,mood:document.getElementById('oto-mood').value,topics:document.getElementById('oto-topics').value.trim(),actions:document.getElementById('oto-actions').value.trim(),notes:document.getElementById('oto-notes').value.trim(),fileUrl:document.getElementById('oto-fileurl').value.trim()});save();closeModal('modal-oto');renderOneToOnes();}
 function deleteOto(id){if(!confirm('Delete this 1:1?'))return;S.onetoones=S.onetoones.filter(o=>o.id!==id);save();renderOneToOnes();}
 
 // ══════════════════════════════════════════════════════════
 // EXPERTS
 // ══════════════════════════════════════════════════════════
-function renderExperts(){const allSkills=[...new Set(S.users.flatMap(u=>Object.keys(u.skills||{})))].sort();const engSkills=new Set(Object.values(SKILLS.engineering).flat());const survSkills=new Set(Object.values(SKILLS.surveying).flat());const expertsBySkill={};allSkills.forEach(skill=>{const ranked=S.users.filter(u=>(u.skills||{})[skill]>=3).map(u=>({user:u,score:(u.skills||{})[skill]})).sort((a,b)=>b.score-a.score);if(ranked.length)expertsBySkill[skill]=ranked.slice(0,5);});const filterDisc=window._expertFilter||'all';let filteredSkills=allSkills;if(filterDisc==='engineering')filteredSkills=allSkills.filter(s=>engSkills.has(s));if(filterDisc==='surveying')filteredSkills=allSkills.filter(s=>survSkills.has(s));filteredSkills=filteredSkills.filter(s=>expertsBySkill[s]);
-  document.getElementById('view-experts').innerHTML=`<div class="page-title">Experts Directory</div><div class="page-sub">Top-rated people for each skill. Find the right person to ask.</div><div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center"><div class="tabs" style="margin-bottom:0;width:auto"><div class="tab ${filterDisc==='all'?'active':''}" onclick="window._expertFilter='all';renderExperts()">All</div><div class="tab ${filterDisc==='engineering'?'active':''}" onclick="window._expertFilter='engineering';renderExperts()">Engineering</div><div class="tab ${filterDisc==='surveying'?'active':''}" onclick="window._expertFilter='surveying';renderExperts()">Surveying</div></div><span class="text-muted text-sm ml-auto">${filteredSkills.length} skills</span></div>${filteredSkills.length?`<div class="two-col">${filteredSkills.map(skill=>{const experts=expertsBySkill[skill];return`<div class="card"><div class="card-title">${skill}</div><div class="card-sub">${experts.length} expert${experts.length!==1?'s':''}</div>${experts.map((e,i)=>`<div class="expert-card"><div class="expert-rank ${i===0?'expert-rank-1':i===1?'expert-rank-2':i===2?'expert-rank-3':'expert-rank-other'}">${i+1}</div><div class="expert-info"><div class="expert-name">${e.user.name}</div><div class="expert-role">${e.user.role}${e.user.team?' · '+e.user.team:''}</div></div><div class="expert-score">${renderDots(e.score)}<span class="badge ${e.score>=5?'badge-green':e.score>=4?'badge-teal':'badge-amber'}">${LEVEL_LABELS[e.score]}</span></div></div>`).join('')}</div>`;}).join('')}</div>`:`<div class="empty-state"><div class="empty-icon">🏆</div><p>No experts found. Rate skills at level 3+ to appear here.</p></div>`}`;}
+function renderExperts(){
+  const allSkills=[...new Set(S.users.flatMap(u=>Object.keys(u.skills||{})))].sort();
+  const engSkills=new Set(Object.values(activeCatalog().engineering||{}).flat());
+  const survSkills=new Set(Object.values(activeCatalog().surveying||{}).flat());
+  const expertsBySkill={};
+  allSkills.forEach(skill=>{
+    const ranked=S.users.filter(u=>(u.skills||{})[skill]>=3).map(u=>({user:u,score:(u.skills||{})[skill]})).sort((a,b)=>b.score-a.score);
+    if(ranked.length)expertsBySkill[skill]=ranked.slice(0,5);
+  });
+  const filterDisc=window._expertFilter||'all';
+  let filteredSkills=allSkills;
+  if(filterDisc==='engineering')filteredSkills=allSkills.filter(s=>engSkills.has(s));
+  if(filterDisc==='surveying')filteredSkills=allSkills.filter(s=>survSkills.has(s));
+  filteredSkills=filteredSkills.filter(s=>expertsBySkill[s]);
+
+  const designated=S.technicalExperts||[];
+
+  document.getElementById('view-experts').innerHTML=`
+    <div class="page-title">Technical Experts</div>
+    <div class="page-sub">Designated technical leads and top-rated people for each skill area.</div>
+
+    ${designated.length||S.adminUnlocked?`
+    <div class="card" style="margin-bottom:24px">
+      <div class="section-header">
+        <h3 style="font-size:.95rem;font-weight:700">Designated Technical Leads</h3>
+        ${S.adminUnlocked?`<button class="btn btn-primary btn-sm ml-auto" onclick="openDesignateExpertModal()">＋ Designate Expert</button>`:''}
+      </div>
+      ${designated.length?`<div class="two-col">
+        ${designated.map(e=>{
+          const u=S.users.find(x=>x.id===e.userId);
+          if(!u)return'';
+          const mailto=u.email?`mailto:${u.email}?subject=Technical Query — ${e.skillArea}&body=Hi ${u.name.split(' ')[0]},%0D%0A%0D%0AI have a technical question about ${e.skillArea}.%0D%0A%0D%0A[Your question here]%0D%0A%0D%0ARegards`:'';
+          return`<div class="card" style="border-left:3px solid var(--moss)">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+              <div class="avatar" style="width:40px;height:40px;font-size:.82rem;flex-shrink:0">${u.name.split(' ').map(n=>n[0]).join('').slice(0,2)}</div>
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:.9rem">${u.name}</div>
+                <div style="font-size:.72rem;color:var(--moss);font-weight:600">${e.expertTitle}</div>
+                <div style="font-size:.7rem;color:var(--muted)">${u.role}${u.team?' · '+u.team:''}</div>
+              </div>
+              ${S.adminUnlocked?`<button class="btn btn-danger btn-sm" style="padding:2px 7px" onclick="deleteDesignatedExpert('${e.id}')">✕</button>`:''}
+            </div>
+            <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Skill Area</div>
+            <div style="font-size:.8rem;margin-bottom:8px">${e.skillArea}</div>
+            ${e.expectations?`<div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">What to Expect</div>
+            <div style="font-size:.78rem;color:var(--wood);line-height:1.5;margin-bottom:10px">${e.expectations}</div>`:''}
+            ${mailto?`<a href="${mailto}" class="btn btn-outline btn-sm" style="text-decoration:none">📧 Email ${u.name.split(' ')[0]}</a>`:''}
+          </div>`;
+        }).join('')}
+      </div>`:`<div style="font-size:.8rem;color:var(--muted);padding:8px 0">No designated experts yet. Click "Designate Expert" to add one.</div>`}
+    </div>`:''}
+
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+      <h3 style="font-size:.88rem;font-weight:700;color:var(--wood)">Top-Rated by Skill</h3>
+      <div class="tabs" style="margin-bottom:0;width:auto;margin-left:auto">
+        <div class="tab ${filterDisc==='all'?'active':''}" onclick="window._expertFilter='all';renderExperts()">All</div>
+        <div class="tab ${filterDisc==='engineering'?'active':''}" onclick="window._expertFilter='engineering';renderExperts()">Engineering</div>
+        <div class="tab ${filterDisc==='surveying'?'active':''}" onclick="window._expertFilter='surveying';renderExperts()">Surveying</div>
+      </div>
+    </div>
+    ${filteredSkills.length?`<div class="two-col">${filteredSkills.map(skill=>{const experts=expertsBySkill[skill];return`<div class="card"><div class="card-title">${skill}</div><div class="card-sub">${experts.length} expert${experts.length!==1?'s':''}</div>${experts.map((e,i)=>{const mailto=e.user.email?`mailto:${e.user.email}?subject=Query — ${skill}&body=Hi ${e.user.name.split(' ')[0]},%0D%0A%0D%0AI have a question about ${skill}.%0D%0A%0D%0ARegards`:'';return`<div class="expert-card"><div class="expert-rank ${i===0?'expert-rank-1':i===1?'expert-rank-2':i===2?'expert-rank-3':'expert-rank-other'}">${i+1}</div><div class="expert-info"><div class="expert-name">${e.user.name}</div><div class="expert-role">${e.user.role}${e.user.team?' · '+e.user.team:''}</div></div><div style="display:flex;align-items:center;gap:6px">${renderDots(e.score)}<span class="badge ${e.score>=5?'badge-green':e.score>=4?'badge-teal':'badge-amber'}">${LEVEL_LABELS[e.score]}</span>${mailto?`<a href="${mailto}" class="btn btn-secondary btn-sm" style="text-decoration:none;padding:3px 8px">📧</a>`:''}</div></div>`;}).join('')}</div>`;}).join('')}</div>``:`<div class="empty-state"><div class="empty-icon">🏆</div><p>No experts found. Rate skills at level 3+ to appear here.</p></div>`}
+  `;
+}
 
 // ══════════════════════════════════════════════════════════
 // MATERIALS LIBRARY (Admin)
@@ -1784,6 +1920,7 @@ function renderMyTeam(){
             </div>
             ${mAssign.length?`<div class="progress-wrap" style="margin-bottom:10px"><div class="progress-fill pf-4" style="width:${mAssign.length?Math.round(mDone/mAssign.length*100):0}%"></div></div>`:''}
             ${(()=>{const pendingSkillCount=Object.keys(m.pendingSkills||{}).length;return`<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px"><div style="font-size:.7rem;color:var(--muted)">Last review: ${lastRev?lastRev.date:'None'}</div><div style="display:flex;gap:6px;flex-wrap:wrap">${pendingSkillCount?`<button class="btn btn-primary btn-sm" onclick="openSkillApprove('${m.id}')">⏳ Approve ${pendingSkillCount} Skill${pendingSkillCount!==1?'s':''}</button>`:'<span class="badge badge-green" style="align-self:center">✓ Skills up to date</span>'}${S.adminUnlocked?`<button class="btn btn-secondary btn-sm" onclick="switchToUser('${m.id}')">View Profile</button>`:''}</div></div>`;})()}
+            ${(()=>{const revReq=m.nextReviewRequest;return revReq&&revReq.status==='requested'?`<div style="background:#fef3e0;border-radius:6px;padding:8px 10px;margin-top:8px;font-size:.78rem"><strong>📅 Review requested</strong> for ${revReq.requestedDate}<button class="btn btn-primary btn-sm" style="margin-left:8px" onclick="openConfirmReviewModal('${m.id}')">Confirm</button></div>`:'';})()}
           </div>`;
         }).join('')}
       </div>
