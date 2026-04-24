@@ -447,6 +447,33 @@ tr:last-child td{border-bottom:none}
         <option value="10">Level 10 – Managing Director (20+ yrs)</option>
       </select>
     </div>
+    <div class="form-group" id="career-history-group" style="display:none">
+      <label class="form-label">Career History Timeline</label>
+      <div id="career-history-list" style="margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <div style="flex:1;min-width:140px">
+          <label class="form-label" style="font-size:.72rem">Level</label>
+          <select class="form-select" id="ch-level">
+            <option value="">Select…</option>
+            <option value="1">L1 — Graduate</option>
+            <option value="2">L2</option>
+            <option value="3">L3</option>
+            <option value="4">L4</option>
+            <option value="5">L5 — Senior</option>
+            <option value="6">L6</option>
+            <option value="7">L7 — Director</option>
+            <option value="8">L8</option>
+            <option value="9">L9 — MD</option>
+            <option value="10">L10 — Principal</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:130px">
+          <label class="form-label" style="font-size:.72rem">Started in this role</label>
+          <input class="form-input" id="ch-date" type="date"/>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="addCareerEntry()" style="margin-bottom:1px">+ Add</button>
+      </div>
+    </div>
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Cost Rate ($/hr)</label>
@@ -908,6 +935,7 @@ let pendingFileData=null;
 // PERSIST (Azure Cosmos DB via API, falls back to localStorage for local dev)
 // ══════════════════════════════════════════════════════════
 let _useAPI=false; // set to true once we confirm the API is available
+let _editingCareerHistory=[];
 let _saveTimer=null;
 
 function save(){
@@ -967,7 +995,7 @@ async function load(){
   // Only seed demo data in local dev mode (not on live Azure site)
   if(!S.users.length && !_useAPI) seedDemo();
   // Migrations
-  S.users.forEach(u=>{if(typeof u.isAdmin==='undefined')u.isAdmin=false;if(!u.careerLevel)u.careerLevel=1;if(!u.pendingSkills)u.pendingSkills={};if(!u.nextReviewRequest)u.nextReviewRequest=null;});
+  S.users.forEach(u=>{if(typeof u.isAdmin==='undefined')u.isAdmin=false;if(!u.careerLevel)u.careerLevel=1;if(!u.pendingSkills)u.pendingSkills={};if(!u.nextReviewRequest)u.nextReviewRequest=null;if(!u.careerHistory)u.careerHistory=[];});
   S.materials.forEach(m=>{if(!Array.isArray(m.discTags))m.discTags=[];if(!Array.isArray(m.senTags))m.senTags=[];});
   save();
 }
@@ -1148,6 +1176,8 @@ function openNewProfileModal(){
   document.getElementById('np-costrate').value='';document.getElementById('np-chargerate').value='';
   document.getElementById('np-isadmin').checked=false;
   document.getElementById('np-career-level').value=1;
+  _editingCareerHistory=[];
+  document.getElementById('career-history-group').style.display='none';
   populateManagerDropdown(null);
   document.getElementById('modal-profile').classList.add('open');
 }
@@ -1177,6 +1207,8 @@ function saveProfile(){
     goals:existing?existing.goals||[]:[],
     skills:existing?existing.skills||{}:{},
     pendingSkills:existing?existing.pendingSkills||{}:{},
+    careerHistory:_editingCareerHistory.slice(),
+    nextReviewRequest:existing?existing.nextReviewRequest||null:null,
   };
   if(editId){const i=S.users.findIndex(u=>u.id===editId);if(i>=0)S.users[i]=prof;}
   else S.users.push(prof);
@@ -1184,6 +1216,32 @@ function saveProfile(){
   if(S.currentUser&&S.currentUser.id===editId){S.currentUser=prof;S.adminUnlocked=!!prof.isAdmin;updateAdminNav();}
   renderAll();if(S.view==='admin')renderAdmin();
 }
+
+function renderCareerHistoryAdmin(){
+  const el=document.getElementById('career-history-list');if(!el)return;
+  if(!_editingCareerHistory.length){el.innerHTML='<div style="font-size:.78rem;color:var(--muted);padding:4px 0">No history recorded yet. Add entries below.</div>';return;}
+  const sorted=[..._editingCareerHistory].sort((a,b)=>a.startDate.localeCompare(b.startDate));
+  el.innerHTML=sorted.map((e,i)=>{
+    const l=getMckLevel(e.level);
+    return`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+      <span class="badge badge-navy" style="min-width:28px;text-align:center">L${e.level}</span>
+      <span style="flex:1;font-size:.82rem;font-weight:600">${l.title}</span>
+      <span style="font-size:.75rem;color:var(--muted)">${fmtDate(e.startDate)}</span>
+      <button onclick="deleteCareerEntry(${_editingCareerHistory.indexOf(e)})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:.8rem;padding:0 2px">✕</button>
+    </div>`;
+  }).join('');
+}
+function addCareerEntry(){
+  const level=parseInt(document.getElementById('ch-level').value);
+  const date=document.getElementById('ch-date').value;
+  if(!level||!date){alert('Select a level and start date.');return;}
+  _editingCareerHistory.push({level,startDate:date});
+  _editingCareerHistory.sort((a,b)=>a.startDate.localeCompare(b.startDate));
+  document.getElementById('ch-level').value='';
+  document.getElementById('ch-date').value='';
+  renderCareerHistoryAdmin();
+}
+function deleteCareerEntry(idx){_editingCareerHistory.splice(idx,1);renderCareerHistoryAdmin();}
 
 // ══════════════════════════════════════════════════════════
 // NAVIGATION
@@ -1743,6 +1801,7 @@ function renderMatrix(){const users=S.users;if(!users.length){document.getElemen
 function renderMyCareer(){
   const u=S.currentUser;if(!u)return;
   const lvlNum=u.careerLevel||1;
+  const history=(u.careerHistory||[]).slice().sort((a,b)=>a.startDate.localeCompare(b.startDate));
   const capLabels=[
     {key:'assigns',label:'Assigns & Approves Work'},
     {key:'projCoord',label:'Project Coord & Quoting'},
@@ -1751,11 +1810,118 @@ function renderMyCareer(){
     {key:'bizAcumen',label:'Business Acumen'},
   ];
 
-  document.getElementById('view-mycareer').innerHTML=`
-    <div class="page-title">My Career Path</div>
-    <div class="page-sub">McKenzie & Co. Career Development Framework — your current level is highlighted</div>
+  // Duration helpers
+  function monthsBetween(start,end){
+    const s=new Date(start),e=end?new Date(end):new Date();
+    return Math.max(0,(e.getFullYear()-s.getFullYear())*12+(e.getMonth()-s.getMonth()));
+  }
+  function fmtDur(months){
+    const y=Math.floor(months/12),m=months%12;
+    if(!y)return m+'mo';
+    if(!m)return y+'yr'+(y!==1?'s':'');
+    return y+'yr'+(y!==1?'s':'')+' '+m+'mo';
+  }
 
-    <div style="overflow-x:auto;margin-bottom:24px">
+  // Build timeline items
+  const timelineItems=[];
+  history.forEach((entry,i)=>{
+    const nextDate=history[i+1]?history[i+1].startDate:null;
+    const isCurrentByHistory=(i===history.length-1);
+    const level=getMckLevel(entry.level);
+    const months=entry.startDate?monthsBetween(entry.startDate,isCurrentByHistory?null:nextDate):null;
+    timelineItems.push({level:entry.level,title:level.title,startDate:entry.startDate,endDate:isCurrentByHistory?null:nextDate,months,isCurrent:isCurrentByHistory});
+  });
+
+  // If no history but careerLevel set, show just current
+  if(!timelineItems.length){
+    timelineItems.push({level:lvlNum,title:getMckLevel(lvlNum).title,startDate:null,endDate:null,months:null,isCurrent:true});
+  }
+
+  // Next level
+  const currentLevel=timelineItems.length?timelineItems[timelineItems.length-1].level:lvlNum;
+  const nextLevel=currentLevel<10?getMckLevel(currentLevel+1):null;
+
+  const timelineHtml=`
+    <div class="card" style="margin-bottom:24px;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+        <div>
+          <div style="font-size:.95rem;font-weight:700;color:var(--wood)">Career Journey</div>
+          <div style="font-size:.75rem;color:var(--muted)">Your progression through the McKenzie framework</div>
+        </div>
+      </div>
+      <div style="position:relative;padding-left:28px">
+        <!-- Vertical line -->
+        <div style="position:absolute;left:10px;top:12px;bottom:${nextLevel?'0':'12px'};width:2px;background:linear-gradient(to bottom,var(--moss),var(--water));border-radius:2px"></div>
+
+        ${timelineItems.map((item,i)=>{
+          const isPast=!item.isCurrent;
+          const dotColor=item.isCurrent?'var(--moss)':'var(--water)';
+          const textColor=item.isCurrent?'var(--wood)':'var(--muted)';
+          const bg=item.isCurrent?'linear-gradient(135deg,#f0f7ee,#e8f5e9)':'';
+          return`<div style="position:relative;margin-bottom:${item.isCurrent?'0':'24px'};padding:10px 12px;border-radius:8px;background:${bg};border:${item.isCurrent?'2px solid var(--moss)':'none'}">
+            <!-- Dot -->
+            <div style="position:absolute;left:-24px;top:14px;width:14px;height:14px;border-radius:50%;background:${dotColor};border:2px solid #fff;box-shadow:0 0 0 2px ${dotColor}"></div>
+            <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">
+              <div style="flex:1;min-width:150px">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                  <span class="badge ${item.isCurrent?'badge-green':'badge-navy'}" style="font-size:.7rem">Level ${item.level}</span>
+                  <span style="font-weight:700;font-size:.88rem;color:var(--wood)">${item.title}</span>
+                  ${item.isCurrent?'<span style="font-size:.7rem;color:var(--moss);font-weight:600">\u2190 You are here</span>':''}
+                </div>
+                ${item.startDate?`<div style="font-size:.72rem;color:${textColor};margin-top:3px">
+                  \uD83D\uDCC5 ${fmtDate(item.startDate)}${item.endDate?' \u2192 '+fmtDate(item.endDate):' \u2192 Present'}
+                </div>`:'<div style="font-size:.72rem;color:var(--muted);margin-top:3px">Start date not recorded</div>'}
+              </div>
+              ${item.months!==null?`<div style="text-align:right;flex-shrink:0">
+                <div style="font-size:1.3rem;font-weight:800;color:${item.isCurrent?'var(--moss)':'var(--muted)'};line-height:1">${fmtDur(item.months)}</div>
+                <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">${item.isCurrent?'so far':'at this level'}</div>
+              </div>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+
+        ${nextLevel?`
+        <!-- Next step -->
+        <div style="position:relative;margin-top:24px;padding:10px 12px;border-radius:8px;background:var(--sand-pale);border:2px dashed var(--border);opacity:.85">
+          <div style="position:absolute;left:-24px;top:14px;width:14px;height:14px;border-radius:50%;background:#fff;border:2px dashed var(--border)"></div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="badge badge-amber" style="font-size:.7rem">Level ${nextLevel.level}</span>
+            <span style="font-weight:700;font-size:.88rem;color:var(--wood)">${nextLevel.title}</span>
+            <span style="font-size:.72rem;color:var(--muted);font-style:italic">\u2014 Next step</span>
+          </div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:3px">Typical total career length: ${nextLevel.careerLength}</div>
+        </div>`:''}
+      </div>
+
+      ${timelineItems.length<=1&&!timelineItems[0].startDate?`<div style="margin-top:16px;padding:10px 12px;background:var(--sand-pale);border-radius:6px;font-size:.78rem;color:var(--muted)">
+        \uD83D\uDCA1 Ask your manager to record your career history in your profile to see your full journey here.
+      </div>`:''}
+    </div>
+  `;
+
+  // Capability card for current level
+  const cur=getMckLevel(lvlNum);
+  const capCard=`<div class="card" style="margin-bottom:24px">
+    <div class="section-header"><h3 style="font-size:.95rem;font-weight:700">Level ${lvlNum} \u2014 ${cur.title} \u00B7 Capabilities</h3></div>
+    <div style="font-size:.8rem;color:var(--wood);line-height:1.6;margin-bottom:14px">${cur.description}</div>
+    <div style="display:flex;flex-direction:column;gap:0">
+      ${capLabels.map(c=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:1rem;width:20px;text-align:center">${cur.caps[c.key]?'✅':'⬜'}</span>
+        <span style="font-size:.82rem;color:var(--wood)">${c.label}</span>
+        ${!cur.caps[c.key]&&nextLevel&&nextLevel.caps[c.key]?'<span style="font-size:.7rem;color:var(--amber);margin-left:auto">Required at next level \u2192</span>':''}
+      </div>`).join('')}
+    </div>
+    <div style="margin-top:12px;font-size:.75rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:12px">
+      <span>\uD83D\uDCC5 ${cur.careerLength}</span>
+      <span>\uD83D\uDC65 ${cur.staffManaged}</span>
+      <span>\uD83C\uDF93 ${cur.profQual===true?'Qualification required':cur.profQual==='maybe'?'Qualification may be required':'No formal qualification required'}</span>
+    </div>
+  </div>`;
+
+  // Framework table (collapsed by default)
+  const tableHtml=`<details style="margin-bottom:24px">
+    <summary style="cursor:pointer;font-size:.82rem;font-weight:700;color:var(--moss);padding:10px 0;user-select:none">\uD83D\uDCCB View Full Career Framework</summary>
+    <div style="overflow-x:auto;margin-top:12px">
       <table style="width:100%;border-collapse:collapse;font-size:.78rem;min-width:700px">
         <thead>
           <tr style="background:var(--wood);color:#fff">
@@ -1770,48 +1936,26 @@ function renderMyCareer(){
         <tbody>
           ${MCK_LEVELS.slice().reverse().map(l=>{
             const isCurrent=l.level===lvlNum;
-            const rowBg=isCurrent?'var(--moss)':'';
-            const rowColor=isCurrent?'#fff':'';
-            const borderStyle=isCurrent?'border:3px solid var(--moss-dark)':'border-bottom:1px solid var(--border)';
-            return`<tr style="background:${rowBg};color:${rowColor};${borderStyle};cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'table-row':'none'">
-              <td style="padding:10px 8px;text-align:center;font-weight:800;font-size:1.1rem">${l.level}</td>
-              <td style="padding:10px 12px;font-weight:700">${l.title}${isCurrent?'<br><span style="font-size:.62rem;font-weight:500;opacity:.85">← You are here</span>':''}</td>
+            return`<tr style="background:${isCurrent?'var(--moss)':''};color:${isCurrent?'#fff':''};border-bottom:1px solid var(--border)">
+              <td style="padding:10px 8px;text-align:center;font-weight:800">${l.level}</td>
+              <td style="padding:10px 12px;font-weight:700">${l.title}${isCurrent?'<br><span style="font-size:.62rem;font-weight:500;opacity:.85">\u2190 You</span>':''}</td>
               <td style="padding:10px 8px;text-align:center">${l.careerLength}</td>
               <td style="padding:10px 8px;text-align:center">${l.staffManaged}</td>
-              <td style="padding:10px 8px;text-align:center">${l.profQual===true?'✅':l.profQual==='maybe'?'⬜ Maybe':'—'}</td>
+              <td style="padding:10px 8px;text-align:center">${l.profQual===true?'✅':l.profQual==='maybe'?'⬜':'—'}</td>
               ${capLabels.map(c=>`<td style="padding:10px 4px;text-align:center">${l.caps[c.key]?'✅':'—'}</td>`).join('')}
-            </tr>
-            <tr style="display:none;background:${isCurrent?'#2d5a24':'var(--sand-pale)'}">
-              <td colspan="${6+capLabels.length}" style="padding:12px 16px">
-                <div style="font-size:.75rem;color:${isCurrent?'rgba(255,255,255,.9)':'var(--wood)'};margin-bottom:6px"><strong>Typical roles:</strong> ${l.roles}</div>
-                <div style="font-size:.75rem;color:${isCurrent?'rgba(255,255,255,.85)':'var(--muted)'};">${l.description}</div>
-              </td>
             </tr>`;
           }).join('')}
         </tbody>
       </table>
-      <div style="font-size:.7rem;color:var(--muted);margin-top:6px">Click any row to expand the description. Your career level is set by your manager.</div>
     </div>
+  </details>`;
 
-    <div class="card">
-      <div class="section-header"><h3 style="font-size:.95rem;font-weight:700">Your Current Level — Level ${lvlNum}: ${getMckLevel(lvlNum).title}</h3></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-        <div>
-          <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:8px">About This Level</div>
-          <p style="font-size:.8rem;color:var(--wood);line-height:1.6">${getMckLevel(lvlNum).description}</p>
-          <div style="margin-top:12px;font-size:.75rem;color:var(--muted)">📅 <strong>Career length:</strong> ${getMckLevel(lvlNum).careerLength}</div>
-          <div style="font-size:.75rem;color:var(--muted)">👥 <strong>Staff managed:</strong> ${getMckLevel(lvlNum).staffManaged}</div>
-          <div style="font-size:.75rem;color:var(--muted)">🎓 <strong>Professional qualification:</strong> ${getMckLevel(lvlNum).profQual===true?'Required':getMckLevel(lvlNum).profQual==='maybe'?'May be required':'Not required'}</div>
-        </div>
-        <div>
-          <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Capabilities at This Level</div>
-          ${capLabels.map(c=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">
-            <span style="font-size:1rem">${getMckLevel(lvlNum).caps[c.key]?'✅':'⬜'}</span>
-            <span style="font-size:.8rem;color:${getMckLevel(lvlNum).caps[c.key]?'var(--wood)':'var(--muted)'};font-weight:${getMckLevel(lvlNum).caps[c.key]?'600':'400'}">${c.label}</span>
-          </div>`).join('')}
-        </div>
-      </div>
-    </div>
+  document.getElementById('view-mycareer').innerHTML=`
+    <div class="page-title">My Career Path</div>
+    <div class="page-sub">Your journey through the McKenzie &amp; Co. career framework</div>
+    ${timelineHtml}
+    ${capCard}
+    ${tableHtml}
   `;
 }
 
@@ -2453,7 +2597,7 @@ Priya Sharma,Surveyor,surveying,3-5,Survey Operations,Sarah Chen,55,120,priya.sh
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mckenzie-growth-staff-template.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 
-function editProfile(id){const u=S.users.find(x=>x.id===id);if(!u)return;document.getElementById('mp-title').textContent='Edit Profile';document.getElementById('np-edit-id').value=id;document.getElementById('np-name').value=u.name;document.getElementById('np-role').value=u.role;document.getElementById('np-disc').value=u.discipline;document.getElementById('np-exp').value=u.experience;document.getElementById('np-team').value=u.team||'';document.getElementById('np-costrate').value=u.costRate||'';document.getElementById('np-chargerate').value=u.chargeRate||'';document.getElementById('np-email').value=u.email||'';document.getElementById('np-isadmin').checked=!!u.isAdmin;document.getElementById('np-career-level').value=u.careerLevel||1;populateManagerDropdown(id);document.getElementById('np-manager').value=u.manager||'';document.getElementById('modal-profile').classList.add('open');}
+function editProfile(id){const u=S.users.find(x=>x.id===id);if(!u)return;document.getElementById('mp-title').textContent='Edit Profile';document.getElementById('np-edit-id').value=id;document.getElementById('np-name').value=u.name;document.getElementById('np-role').value=u.role;document.getElementById('np-disc').value=u.discipline;document.getElementById('np-exp').value=u.experience;document.getElementById('np-team').value=u.team||'';document.getElementById('np-costrate').value=u.costRate||'';document.getElementById('np-chargerate').value=u.chargeRate||'';document.getElementById('np-email').value=u.email||'';document.getElementById('np-isadmin').checked=!!u.isAdmin;document.getElementById('np-career-level').value=u.careerLevel||1;populateManagerDropdown(id);document.getElementById('np-manager').value=u.manager||'';_editingCareerHistory=[...(u.careerHistory||[])];document.getElementById('career-history-group').style.display='';renderCareerHistoryAdmin();document.getElementById('modal-profile').classList.add('open');}
 function switchToUser(id){selectUser(id);navigate('dashboard',document.querySelector('[data-view=dashboard]'));}
 function deleteUser(id){if(!confirm('Delete?'))return;S.users=S.users.filter(u=>u.id!==id);S.assignments=S.assignments.filter(a=>a.userId!==id);S.reviews=S.reviews.filter(r=>r.userId!==id);S.onetoones=S.onetoones.filter(o=>o.userId!==id&&o.withId!==id);if(S.currentUser&&S.currentUser.id===id){S.currentUser=null;S.adminUnlocked=false;updateHeader();updateAdminNav();}save();renderAdmin();}
 function removeAssignment(id){if(!confirm('Remove?'))return;S.assignments=S.assignments.filter(a=>a.id!==id);save();updateAssignedBadge();renderAdmin();}
