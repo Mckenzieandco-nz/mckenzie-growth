@@ -1229,8 +1229,10 @@ function selectUser(id){
 function updateAdminNav(){
   const show=S.adminUnlocked;
   document.querySelectorAll('.admin-only').forEach(el=>{el.style.display=show?'':'none';});
-  const myReports=S.currentUser?S.users.filter(u=>u.manager===S.currentUser.id):[];
-  document.querySelectorAll('.exec-only').forEach(el=>{el.style.display=myReports.length?'':'none';});
+  const hasTeam=!!(S.currentUser&&S.users.some(u=>u.manager===S.currentUser.id));
+  document.querySelectorAll('.exec-only').forEach(el=>{el.style.display=hasTeam?'':'none';});
+  // If user is on My Team but no longer has a team, bounce to dashboard
+  if(!hasTeam&&S.view==='myteam')navigate('dashboard',document.querySelector('[data-view=dashboard]'));
 }
 function updateHeader(){
   if(!S.currentUser){document.getElementById('hdr-avatar').textContent='?';document.getElementById('hdr-name').textContent='Select Profile';document.getElementById('hdr-role').textContent='—';return;}
@@ -1341,7 +1343,7 @@ function navigate(view,el){
   views.forEach(v=>document.getElementById('view-'+v).style.display=v===view?'':'none');
   renderView(view);
 }
-function renderAll(){renderView(S.view);}
+function renderAll(){updateAdminNav();renderView(S.view);}
 function renderView(v){
   const m={dashboard:renderDashboard,goals:renderGoals,skills:renderSkills,mycareer:renderMyCareer,training:renderTraining,mycourses:renderMyCourses,reviews:renderReviews,onetoones:renderOneToOnes,disclosures:renderDisclosures,experts:renderExperts,materials:renderMaterials,matrix:renderMatrix,admin:renderAdmin,myteam:renderMyTeam,mydocs:renderMyDocs};
   if(m[v])m[v]();
