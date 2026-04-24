@@ -1047,20 +1047,30 @@ async function doMicrosoftLogin(){
   }
 
   // We have a Microsoft identity — load data and find/create their profile
-  await load();
+  const statusEl=document.getElementById('login-status');
+  statusEl.style.display='';
+  statusEl.style.color='var(--muted)';
+  statusEl.textContent='Loading your profile…';
+  try{
+    await load();
+  }catch(loadErr){
+    statusEl.style.color='var(--red)';
+    statusEl.innerHTML=`Error loading data: ${loadErr.message}<br>Please try refreshing the page.`;
+    return;
+  }
   const existing=S.users.find(u=>u.email===_msUser.email);
   if(existing){
     // Existing user — log them in
+    statusEl.style.display='none';
     document.getElementById('login-screen').classList.remove('open');
     S.adminUnlocked=!!existing.isAdmin;
     selectUser(existing.id);
     navigate('dashboard',document.querySelector('[data-view=dashboard]'));
   }else{
     // No profile found — show a message, don't let them in
-    const status=document.getElementById('login-status');
-    status.style.display='';
-    status.style.color='var(--red)';
-    status.innerHTML=`Your account (<strong>${_msUser.email}</strong>) hasn't been set up yet.<br>Please contact your administrator to get access.`;
+    statusEl.style.display='';
+    statusEl.style.color='var(--red)';
+    statusEl.innerHTML=`Your Microsoft account (<strong>${_msUser.email}</strong>) hasn't been set up in McKenzie Growth yet.<br>Please contact your administrator to get access.<br><small style="color:var(--muted)">Users loaded: ${S.users.length}</small>`;
     document.getElementById('login-screen').classList.add('open');
   }
 }
@@ -1531,6 +1541,10 @@ function openReviewModal(){document.getElementById('review-modal-title').textCon
 function saveReview(){const scores={technical:parseInt(document.getElementById('rev-s-technical').value)||0,communication:parseInt(document.getElementById('rev-s-communication').value)||0,teamwork:parseInt(document.getElementById('rev-s-teamwork').value)||0,leadership:parseInt(document.getElementById('rev-s-leadership').value)||0,initiative:parseInt(document.getElementById('rev-s-initiative').value)||0,overall:parseInt(document.getElementById('rev-s-overall').value)||0};S.reviews.push({id:'r'+Date.now(),userId:S.currentUser.id,period:document.getElementById('rev-period').value,type:document.getElementById('rev-type').value,reviewerId:document.getElementById('rev-reviewer').value,date:new Date().toISOString().split('T')[0],scores,strengths:document.getElementById('rev-strengths').value.trim(),improvements:document.getElementById('rev-improvements').value.trim(),nextGoals:document.getElementById('rev-nextgoals').value.trim(),comments:document.getElementById('rev-comments').value.trim()});save();closeModal('modal-review');renderReviews();}
 function deleteReview(id){if(!confirm('Delete this review?'))return;S.reviews=S.reviews.filter(r=>r.id!==id);save();renderReviews();}
 function openReviewRequestModal(){alert('6-monthly review scheduling is coming soon. Please contact your manager directly to arrange your next review.');}
+function cancelReviewRequest(){if(!S.currentUser)return;if(!confirm('Cancel this review request?'))return;S.currentUser.nextReviewRequest=null;save();renderReviews();}
+function openConfirmReviewModal(userId){alert('Review confirmation coming soon. Please contact the staff member directly to confirm the date.');}
+function openDesignateExpertModal(){alert('Designate Expert feature coming soon.');}
+function deleteDesignatedExpert(id){if(!confirm('Remove this designated expert?'))return;S.technicalExperts=(S.technicalExperts||[]).filter(e=>e.id!==id);save();renderExperts();}
 
 // ══════════════════════════════════════════════════════════
 // DISCLOSURES (stub — feature coming soon)
