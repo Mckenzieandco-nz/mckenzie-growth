@@ -2649,35 +2649,42 @@ function renderKpiRunReport(el){
 
 function renderKpiEmailSettings(el){
   el.innerHTML=`
-    <div style="display:grid;gap:20px;max-width:620px">
+    <div style="display:grid;gap:20px;max-width:640px">
       <div class="card" style="padding:18px">
         <div class="card-title">📬 Default Report Recipients</div>
-        <div class="card-sub" style="margin-bottom:12px">Comma-separated email addresses. These receive all emailed reports.</div>
+        <div class="card-sub" style="margin-bottom:12px">Comma-separated email addresses. These receive all manually sent reports.</div>
         <textarea class="form-input" id="kpi-recipients" rows="2" placeholder="admin@mckenzieandco.co.nz, ceo@mckenzieandco.co.nz">${esc(S.reportRecipients||'')}</textarea>
         <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="saveKpiRecipients()">Save Recipients</button>
       </div>
-      <div class="card" style="padding:18px">
-        <div class="card-title">⏰ Auto-Schedule</div>
-        <div class="card-sub" style="margin-bottom:12px">Automatic reports are sent by a scheduled Azure Function (runs on the 1st of each period). Requires SMTP configuration below.</div>
-        <div style="display:flex;flex-direction:column;gap:10px">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem"><input type="checkbox" id="kpi-auto-m" ${S.kpiAutoMonthly?'checked':''} style="width:16px;height:16px"/> Monthly — 1st of each month at 8am</label>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem"><input type="checkbox" id="kpi-auto-q" ${S.kpiAutoQuarterly?'checked':''} style="width:16px;height:16px"/> Quarterly — 1 Jan, 1 Apr, 1 Jul, 1 Oct at 8am</label>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem"><input type="checkbox" id="kpi-auto-a" ${S.kpiAutoAnnual?'checked':''} style="width:16px;height:16px"/> Annual — 1 January at 8am</label>
-        </div>
-        <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="saveKpiAutoSchedule()">Save Schedule</button>
-      </div>
       <div class="card" style="padding:18px;background:var(--sand-pale)">
         <div class="card-title">🔧 SMTP Configuration (Azure App Settings)</div>
-        <div class="card-sub" style="margin-bottom:12px">Set these in Azure Portal → your Static Web App → Configuration → Application settings. For Office 365, use an app password or SMTP AUTH-enabled service account.</div>
+        <div class="card-sub" style="margin-bottom:12px">Set these in <strong>Azure Portal → Static Web App → Settings → Environment variables</strong>. For Office 365 use an app password or SMTP AUTH-enabled service account.</div>
         <div style="font-family:monospace;font-size:.78rem;background:var(--wood);color:#e8e4dc;padding:14px;border-radius:6px;line-height:2">
           SMTP_HOST=smtp.office365.com<br>SMTP_PORT=587<br>SMTP_USER=reports@mckenzieandco.co.nz<br>SMTP_PASS=your-app-password<br>SMTP_FROM=McKenzie Growth &lt;reports@mckenzieandco.co.nz&gt;
         </div>
+      </div>
+      <div class="card" style="padding:18px">
+        <div class="card-title">⏰ Auto-Schedule via Power Automate</div>
+        <div class="card-sub" style="margin-bottom:14px">Azure Static Web Apps only supports HTTP-triggered functions, so scheduled emails are set up through <strong>Power Automate</strong> (included in your Microsoft 365 licence). Create a flow for each frequency you want.</div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          ${[['Monthly','0 8 1 * *','the 1st of every month'],['Quarterly','0 8 1 1,4,7,10 *','1 Jan · 1 Apr · 1 Jul · 1 Oct'],['Annual','0 8 1 1 *','1 January each year']].map(([label,cron,when])=>`
+          <div style="border:1px solid var(--border);border-radius:8px;padding:14px">
+            <div style="font-weight:700;font-size:.85rem;color:var(--wood);margin-bottom:4px">${label} Report — ${when}</div>
+            <div style="font-size:.75rem;color:var(--muted);margin-bottom:10px">Power Automate flow: <em>Recurrence</em> trigger → <em>HTTP POST</em> action</div>
+            <div style="font-size:.75rem;margin-bottom:6px;font-weight:600">HTTP action settings:</div>
+            <div style="font-family:monospace;font-size:.73rem;background:var(--sand-pale);padding:10px;border-radius:5px;line-height:1.9">
+              Method: POST<br>
+              URI: https://mango-mushroom-01b4ff200.3.azurestaticapps.net/api/sendScheduled?freq=${label.toLowerCase()}<br>
+              Headers: Content-Type: application/json
+            </div>
+          </div>`).join('')}
+        </div>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:14px">💡 In Power Automate: <strong>Create</strong> → <strong>Scheduled cloud flow</strong> → set recurrence → add an <strong>HTTP</strong> action with the settings above. The app will compute current metrics and email your recipients automatically.</div>
       </div>
     </div>`;
 }
 
 function saveKpiRecipients(){S.reportRecipients=document.getElementById('kpi-recipients').value.trim();save();showToast('Recipients saved ✓');}
-function saveKpiAutoSchedule(){S.kpiAutoMonthly=document.getElementById('kpi-auto-m').checked;S.kpiAutoQuarterly=document.getElementById('kpi-auto-q').checked;S.kpiAutoAnnual=document.getElementById('kpi-auto-a').checked;save();showToast('Auto-schedule saved ✓');}
 
 function openKpiModal(editId){
   document.getElementById('kpi-modal-title').textContent=editId?'Edit KPI':'Add KPI';
