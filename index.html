@@ -898,6 +898,70 @@ Sarah Chen,Principal Surveyor,surveying,10+,Survey Operations,,95,195,sarah.chen
   </div>
 </div>
 
+<!-- Modal: KPI -->
+<div class="modal-overlay" id="modal-kpi">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title" id="kpi-modal-title">Add KPI</div>
+    <div class="form-group">
+      <label class="form-label">KPI Name *</label>
+      <input class="form-input" id="kpi-name" placeholder="e.g. Monthly CPD Hours per Person"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <input class="form-input" id="kpi-desc" placeholder="Brief description of what this measures…"/>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Metric *</label>
+        <select class="form-select" id="kpi-metric">
+          <option value="">Select metric…</option>
+          <option value="headcount">👥 Headcount</option>
+          <option value="cpd_total">📚 Total CPD Hours</option>
+          <option value="cpd_avg">📚 Avg CPD Hours/Person</option>
+          <option value="review_coverage">⭐ Review Coverage %</option>
+          <option value="oto_coverage">🤝 1:1 Coverage %</option>
+          <option value="training_complete">🎓 Training Completion %</option>
+          <option value="overdue_training">⚠️ Overdue Assignments</option>
+          <option value="skills_avg">🧠 Avg Skills Assessed</option>
+          <option value="disclosures_open">🔒 Open Disclosures</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Report Frequency *</label>
+        <select class="form-select" id="kpi-freq">
+          <option value="monthly">Monthly</option>
+          <option value="quarterly">Quarterly</option>
+          <option value="annual">Annual</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Target Value *</label>
+        <input class="form-input" id="kpi-target" type="number" step="0.1" min="0" placeholder="e.g. 80"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Target Direction</label>
+        <select class="form-select" id="kpi-dir">
+          <option value="gte">≥ Higher is better</option>
+          <option value="lte">≤ Lower is better</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem">
+        <input type="checkbox" id="kpi-active" style="width:16px;height:16px" checked/>
+        Active — include in reports
+      </label>
+    </div>
+    <input type="hidden" id="kpi-edit-id"/>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-kpi')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveKpi()">Save KPI</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════════════════
 // SKILLS CATALOG
@@ -1000,7 +1064,7 @@ const MCK_LEVELS=[
 // ══════════════════════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════════════════════
-let S={currentUser:null,users:[],materials:[],assignments:[],reviews:[],onetoones:[],skillsCatalog:null,resources:null,cpdLog:[],technicalExperts:[],disclosures:[],disclosureContact:'',docs:[],view:'dashboard',adminUnlocked:false};
+let S={currentUser:null,users:[],materials:[],assignments:[],reviews:[],onetoones:[],skillsCatalog:null,resources:null,cpdLog:[],technicalExperts:[],disclosures:[],disclosureContact:'',docs:[],kpis:[],reportRecipients:'',kpiAutoMonthly:false,kpiAutoQuarterly:false,kpiAutoAnnual:false,view:'dashboard',adminUnlocked:false};
 let pendingFileData=null;
 
 // ══════════════════════════════════════════════════════════
@@ -1024,12 +1088,15 @@ function save(){
   localStorage.setItem('mck_disclosures', JSON.stringify(S.disclosures));
   localStorage.setItem('mck_disccontact', S.disclosureContact||'');
   localStorage.setItem('mck_docs', JSON.stringify(S.docs));
+  localStorage.setItem('mck_kpis', JSON.stringify(S.kpis));
+  localStorage.setItem('mck_report_recipients', S.reportRecipients||'');
+  localStorage.setItem('mck_kpi_auto', JSON.stringify({monthly:S.kpiAutoMonthly,quarterly:S.kpiAutoQuarterly,annual:S.kpiAutoAnnual}));
   // Debounce API saves (300ms) so rapid changes don't flood the server
   if(_useAPI){
     clearTimeout(_saveTimer);
     _saveTimer=setTimeout(()=>{
       fetch('/api/saveData',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({users:S.users,materials:S.materials,assignments:S.assignments,reviews:S.reviews,onetoones:S.onetoones,skillsCatalog:S.skillsCatalog,resources:S.resources,cpdLog:S.cpdLog,technicalExperts:S.technicalExperts,disclosures:S.disclosures,disclosureContact:S.disclosureContact,docs:S.docs})
+        body:JSON.stringify({users:S.users,materials:S.materials,assignments:S.assignments,reviews:S.reviews,onetoones:S.onetoones,skillsCatalog:S.skillsCatalog,resources:S.resources,cpdLog:S.cpdLog,technicalExperts:S.technicalExperts,disclosures:S.disclosures,disclosureContact:S.disclosureContact,docs:S.docs,kpis:S.kpis,reportRecipients:S.reportRecipients,kpiAutoMonthly:S.kpiAutoMonthly,kpiAutoQuarterly:S.kpiAutoQuarterly,kpiAutoAnnual:S.kpiAutoAnnual})
       }).catch(err=>console.warn('API save failed, data safe in localStorage:',err));
     },300);
   }
@@ -1050,6 +1117,11 @@ async function load(){
       S.disclosures=data.disclosures||[];
       S.disclosureContact=data.disclosureContact||'';
       S.docs=data.docs||[];
+      S.kpis=data.kpis||[];
+      S.reportRecipients=data.reportRecipients||'';
+      S.kpiAutoMonthly=!!data.kpiAutoMonthly;
+      S.kpiAutoQuarterly=!!data.kpiAutoQuarterly;
+      S.kpiAutoAnnual=!!data.kpiAutoAnnual;
       _useAPI=true;
     }else throw new Error('API returned '+res.status);
   }catch(e){
@@ -1066,6 +1138,9 @@ async function load(){
     try{S.disclosures=JSON.parse(localStorage.getItem('mck_disclosures')||'[]');}catch(e){S.disclosures=[];}
     try{S.disclosureContact=localStorage.getItem('mck_disccontact')||'';}catch(e){S.disclosureContact='';}
     try{S.docs=JSON.parse(localStorage.getItem('mck_docs')||'[]');}catch(e){S.docs=[];}
+    try{S.kpis=JSON.parse(localStorage.getItem('mck_kpis')||'[]');}catch(e){S.kpis=[];}
+    try{S.reportRecipients=localStorage.getItem('mck_report_recipients')||'';}catch(e){S.reportRecipients='';}
+    try{const ka=JSON.parse(localStorage.getItem('mck_kpi_auto')||'{}');S.kpiAutoMonthly=!!ka.monthly;S.kpiAutoQuarterly=!!ka.quarterly;S.kpiAutoAnnual=!!ka.annual;}catch(e){S.kpiAutoMonthly=S.kpiAutoQuarterly=S.kpiAutoAnnual=false;}
   }
   // Only seed demo data in local dev mode (not on live Azure site)
   if(!S.users.length && !_useAPI) seedDemo();
@@ -2381,9 +2456,9 @@ function renderMyTeam(){
 // ══════════════════════════════════════════════════════════
 let adminTab='staff';
 function renderAdmin(){if(!S.adminUnlocked){document.getElementById('view-admin').innerHTML='<div class="empty-state"><p>You need admin rights to access this section.</p></div>';return;}
-  document.getElementById('view-admin').innerHTML=`<div class="page-title">Admin Panel</div><div class="page-sub">Manage staff, materials, org structure and team insights</div><div class="tabs" style="margin-bottom:24px;flex-wrap:wrap"><div class="tab ${adminTab==='staff'?'active':''}" onclick="adminTab='staff';renderAdmin()">Staff</div><div class="tab ${adminTab==='skills'?'active':''}" onclick="adminTab='skills';renderAdmin()">Skills</div><div class="tab ${adminTab==='resources'?'active':''}" onclick="adminTab='resources';renderAdmin()">Resources</div><div class="tab ${adminTab==='materials'?'active':''}" onclick="adminTab='materials';renderAdmin()">Materials</div><div class="tab ${adminTab==='matrix'?'active':''}" onclick="adminTab='matrix';renderAdmin()">Matrix</div><div class="tab ${adminTab==='orgchart'?'active':''}" onclick="adminTab='orgchart';renderAdmin()">Org Chart</div><div class="tab ${adminTab==='rates'?'active':''}" onclick="adminTab='rates';renderAdmin()">Rates</div><div class="tab ${adminTab==='optimise'?'active':''}" onclick="adminTab='optimise';renderAdmin()">AI Optimise</div><div class="tab ${adminTab==='allreviews'?'active':''}" onclick="adminTab='allreviews';renderAdmin()">Reviews</div><div class="tab ${adminTab==='data'?'active':''}" onclick="adminTab='data';renderAdmin()">Data</div></div><div id="admin-tab-content"></div>`;
+  document.getElementById('view-admin').innerHTML=`<div class="page-title">Admin Panel</div><div class="page-sub">Manage staff, materials, org structure and team insights</div><div class="tabs" style="margin-bottom:24px;flex-wrap:wrap"><div class="tab ${adminTab==='staff'?'active':''}" onclick="adminTab='staff';renderAdmin()">Staff</div><div class="tab ${adminTab==='skills'?'active':''}" onclick="adminTab='skills';renderAdmin()">Skills</div><div class="tab ${adminTab==='resources'?'active':''}" onclick="adminTab='resources';renderAdmin()">Resources</div><div class="tab ${adminTab==='materials'?'active':''}" onclick="adminTab='materials';renderAdmin()">Materials</div><div class="tab ${adminTab==='matrix'?'active':''}" onclick="adminTab='matrix';renderAdmin()">Matrix</div><div class="tab ${adminTab==='orgchart'?'active':''}" onclick="adminTab='orgchart';renderAdmin()">Org Chart</div><div class="tab ${adminTab==='rates'?'active':''}" onclick="adminTab='rates';renderAdmin()">Rates</div><div class="tab ${adminTab==='optimise'?'active':''}" onclick="adminTab='optimise';renderAdmin()">AI Optimise</div><div class="tab ${adminTab==='allreviews'?'active':''}" onclick="adminTab='allreviews';renderAdmin()">Reviews</div><div class="tab ${adminTab==='data'?'active':''}" onclick="adminTab='data';renderAdmin()">Data</div><div class="tab ${adminTab==='kpireports'?'active':''}" onclick="adminTab='kpireports';renderAdmin()">📊 KPI Reports</div></div><div id="admin-tab-content"></div>`;
   const c=document.getElementById('admin-tab-content');
-  ({staff:renderAdminStaff,skills:renderAdminSkills,resources:renderAdminResources,materials:renderAdminMats,matrix:renderAdminMatrix,orgchart:renderAdminOrg,rates:renderAdminRates,optimise:renderAdminOptimise,allreviews:renderAdminReviews,data:renderAdminData})[adminTab]?.(c);
+  ({staff:renderAdminStaff,skills:renderAdminSkills,resources:renderAdminResources,materials:renderAdminMats,matrix:renderAdminMatrix,orgchart:renderAdminOrg,rates:renderAdminRates,optimise:renderAdminOptimise,allreviews:renderAdminReviews,data:renderAdminData,kpireports:renderAdminKpiReports})[adminTab]?.(c);
 }
 
 function renderAdminStaff(el){el.innerHTML=`<div class="section-header"><h3>Staff (${S.users.length})</h3><div class="ml-auto" style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm" onclick="openBulkImport()">⇪ Bulk Import</button><button class="btn btn-primary btn-sm" onclick="openNewProfileModal()">+ Add</button></div></div><table><thead><tr><th>Name</th><th>Role</th><th>Team</th><th>Email</th><th>Admin</th><th>Skills</th><th>Actions</th></tr></thead><tbody>${S.users.map(u=>`<tr><td><strong>${u.name}</strong></td><td>${u.role}</td><td>${u.team||'—'}</td><td><code style="font-size:.72rem;background:var(--sand-pale);padding:2px 6px;border-radius:3px">${u.email||u.username||'—'}</code></td><td>${u.isAdmin?'<span class="badge badge-green">Admin</span>':'<span class="text-muted" style="font-size:.75rem">—</span>'}</td><td>${Object.keys(u.skills||{}).length}</td><td style="white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="editProfile('${u.id}')">Edit</button> <button class="btn btn-secondary btn-sm" onclick="switchToUser('${u.id}')">Switch</button> <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}')">Del</button></td></tr>`).join('')}</tbody></table><div class="card mt-4"><div class="section-header"><h3>Assignments (${S.assignments.length})</h3></div><table><thead><tr><th>Material</th><th>To</th><th>By</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>${S.assignments.length?S.assignments.map(a=>{const mat=S.materials.find(m=>m.id===a.matId)||{title:'Deleted'};const usr=S.users.find(u=>u.id===a.userId)||{name:'?'};return`<tr><td>${mat.title}</td><td>${usr.name}</td><td>${a.assignedBy}</td><td>${a.dueDate||'—'}</td><td><span class="badge ${a.status==='completed'?'badge-green':'badge-amber'}">${cap(a.status)}</span></td><td><button class="btn btn-danger btn-sm" onclick="removeAssignment('${a.id}')">✕</button></td></tr>`;}).join(''):'<tr><td colspan="6" class="text-muted" style="text-align:center">None</td></tr>'}</tbody></table></div>`;}
@@ -2433,6 +2508,272 @@ function renderAdminReviews(el){const allRevs=S.reviews.sort((a,b)=>b.date.local
     <div class="section-header mt-4"><h3>All 1:1s (${allOtos.length})</h3></div><table><thead><tr><th>Staff</th><th>With</th><th>Date</th><th>Mood</th><th>Topics</th></tr></thead><tbody>${allOtos.map(o=>{const u=S.users.find(x=>x.id===o.userId)||{name:'?'};const w=S.users.find(x=>x.id===o.withId)||{name:'?'};return`<tr><td><strong>${u.name}</strong></td><td>${w.name}</td><td>${fmtDate(o.date)}</td><td><span class="badge ${MOOD_COLORS[o.mood]}">${MOOD_ICONS[o.mood]||''} ${cap(o.mood)}</span></td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.topics||'—')}</td></tr>`;}).join('')||'<tr><td colspan="5" class="text-muted" style="text-align:center">None</td></tr>'}</tbody></table>`;}
 
 function renderAdminData(el){el.innerHTML=`<div class="two-col"><div class="card"><div class="card-title">Export CSV</div><div class="card-sub">Download skills matrix</div><button class="btn btn-secondary" onclick="exportCSV()">Export</button></div><div class="card"><div class="card-title">Bulk Import Staff</div><div class="card-sub">Upload many staff at once</div><button class="btn btn-secondary" onclick="openBulkImport()">Open</button></div><div class="card"><div class="card-title">Reset Data</div><div class="card-sub">Clear all profiles and data</div><button class="btn btn-danger" onclick="resetAll()">Reset</button></div></div>`;}
+
+// ══════════════════════════════════════════════════════════
+// KPI REPORTING
+// ══════════════════════════════════════════════════════════
+const KPI_METRICS={
+  headcount:         {label:'Headcount',            unit:'people', desc:'Total number of active staff'},
+  cpd_total:         {label:'Total CPD Hours',      unit:'hrs',    desc:'Sum of CPD hours logged in period'},
+  cpd_avg:           {label:'Avg CPD Hours/Person', unit:'hrs',    desc:'Average CPD hours per staff member'},
+  review_coverage:   {label:'Review Coverage',      unit:'%',      desc:'% of staff with at least one review in period'},
+  oto_coverage:      {label:'1:1 Coverage',         unit:'%',      desc:'% of staff with at least one 1:1 in period'},
+  training_complete: {label:'Training Completion',  unit:'%',      desc:'% of due assignments marked complete'},
+  overdue_training:  {label:'Overdue Assignments',  unit:'items',  desc:'Assignments past due date and not completed'},
+  skills_avg:        {label:'Avg Skills Assessed',  unit:'skills', desc:'Average number of rated skills per person'},
+  disclosures_open:  {label:'Open Disclosures',     unit:'items',  desc:'Disclosures not yet resolved'},
+};
+
+function computeKpi(metric,from,to){
+  const users=S.users;const n=users.length||1;
+  const inP=d=>(!from||d>=from)&&(!to||d<=to);
+  switch(metric){
+    case 'headcount':return users.length;
+    case 'cpd_total':return S.cpdLog.filter(e=>inP(e.date)).reduce((a,e)=>a+(e.hours||0),0);
+    case 'cpd_avg':{const t=S.cpdLog.filter(e=>inP(e.date)).reduce((a,e)=>a+(e.hours||0),0);return+(t/n).toFixed(1);}
+    case 'review_coverage':{const s=new Set(S.reviews.filter(r=>inP(r.date)).map(r=>r.userId));return users.length?+((s.size/users.length)*100).toFixed(0):0;}
+    case 'oto_coverage':{const s=new Set([...S.onetoones.filter(o=>inP(o.date)).flatMap(o=>[o.userId,o.withId])].filter(id=>S.users.find(u=>u.id===id)));return users.length?+((s.size/users.length)*100).toFixed(0):0;}
+    case 'training_complete':{const due=S.assignments.filter(a=>!a.dueDate||a.dueDate<=to);const done=due.filter(a=>a.status==='completed');return due.length?+((done.length/due.length)*100).toFixed(0):100;}
+    case 'overdue_training':{const today=new Date().toISOString().split('T')[0];return S.assignments.filter(a=>a.status!=='completed'&&a.dueDate&&a.dueDate<today).length;}
+    case 'skills_avg':{const t=users.reduce((a,u)=>a+Object.keys(u.skills||{}).length,0);return+(t/n).toFixed(1);}
+    case 'disclosures_open':return S.disclosures.filter(d=>d.status!=='resolved').length;
+    default:return 0;
+  }
+}
+
+function getPeriodRange(type,ref){
+  if(!ref)return null;
+  if(type==='monthly'){
+    const [y,m]=ref.split('-');if(!y||!m)return null;
+    const from=`${y}-${m}-01`;const last=new Date(+y,+m,0).getDate();const to=`${y}-${m}-${String(last).padStart(2,'0')}`;
+    return{from,to,label:new Date(+y,+m-1,1).toLocaleDateString('en-NZ',{month:'long',year:'numeric'})};
+  }
+  if(type==='quarterly'){
+    const [y,q]=(ref.includes('-Q')?ref:`${ref}-Q1`).split('-Q');
+    const sm=(+q-1)*3+1;const em=sm+2;
+    const from=`${y}-${String(sm).padStart(2,'0')}-01`;const last=new Date(+y,em,0).getDate();const to=`${y}-${String(em).padStart(2,'0')}-${String(last).padStart(2,'0')}`;
+    return{from,to,label:`Q${q} ${y}`};
+  }
+  if(type==='annual'){return{from:`${ref}-01-01`,to:`${ref}-12-31`,label:`${ref}`};}
+  return null;
+}
+
+let _kpiSubTab='kpis';
+let _kpiReportType='monthly';
+let _kpiReportRef='';
+
+function renderAdminKpiReports(el){
+  if(!_kpiReportRef){const now=new Date();_kpiReportRef=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;}
+  el.innerHTML=`
+    <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:12px">
+      ${[['kpis','📊 KPI Library'],['report','📈 Run Report'],['settings','⚙️ Email Settings']].map(([t,l])=>`<button class="btn ${_kpiSubTab===t?'btn-primary':'btn-secondary'} btn-sm" onclick="_kpiSubTab='${t}';renderAdmin()">${l}</button>`).join('')}
+    </div>
+    <div id="kpi-sub"></div>`;
+  const sub=el.querySelector('#kpi-sub');
+  if(_kpiSubTab==='kpis')renderKpiLibrary(sub);
+  else if(_kpiSubTab==='report')renderKpiRunReport(sub);
+  else renderKpiEmailSettings(sub);
+}
+
+function renderKpiLibrary(el){
+  const kpis=S.kpis||[];
+  el.innerHTML=`
+    <div class="section-header" style="margin-bottom:16px"><h3>KPI Library (${kpis.length})</h3><button class="btn btn-primary btn-sm ml-auto" onclick="openKpiModal()">+ Add KPI</button></div>
+    ${kpis.length?`<table><thead><tr><th>KPI Name</th><th>Metric</th><th>Frequency</th><th>Target</th><th>Direction</th><th>Active</th><th></th></tr></thead><tbody>
+      ${kpis.map(k=>`<tr>
+        <td><strong>${esc(k.name)}</strong>${k.description?`<div style="font-size:.72rem;color:var(--muted)">${esc(k.description)}</div>`:''}</td>
+        <td>${KPI_METRICS[k.metric]?.label||k.metric}</td>
+        <td><span class="badge badge-navy">${cap(k.frequency)}</span></td>
+        <td>${k.target} ${KPI_METRICS[k.metric]?.unit||''}</td>
+        <td>${k.targetDirection==='lte'?'≤ Lower is better':'≥ Higher is better'}</td>
+        <td>${k.active?'<span class="badge badge-green">On</span>':'<span class="badge badge-amber">Off</span>'}</td>
+        <td style="white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="openKpiModal('${k.id}')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteKpi('${k.id}')">✕</button></td>
+      </tr>`).join('')}</tbody></table>`
+    :`<div class="empty-state"><div class="empty-icon">📊</div><p>No KPIs defined yet.</p><button class="btn btn-primary" onclick="openKpiModal()">+ Add First KPI</button></div>`}`;
+}
+
+function renderKpiRunReport(el){
+  const now=new Date();const curY=now.getFullYear();
+  const years=Array.from({length:5},(_,i)=>curY-i);
+  const mNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const mPads=['01','02','03','04','05','06','07','08','09','10','11','12'];
+  let pSel='';
+  if(_kpiReportType==='monthly'){
+    pSel=`<select class="form-select" style="width:auto" onchange="_kpiReportRef=this.value;renderAdmin()">
+      ${years.flatMap(y=>mPads.map((m,mi)=>{const v=`${y}-${m}`;return`<option value="${v}" ${v===_kpiReportRef?'selected':''}>${mNames[mi]} ${y}</option>`;})).join('')}
+    </select>`;
+  }else if(_kpiReportType==='quarterly'){
+    pSel=`<select class="form-select" style="width:auto" onchange="_kpiReportRef=this.value;renderAdmin()">
+      ${years.flatMap(y=>[1,2,3,4].map(q=>{const v=`${y}-Q${q}`;return`<option value="${v}" ${v===_kpiReportRef?'selected':''}>Q${q} ${y}</option>`;})).join('')}
+    </select>`;
+  }else{
+    const ry=_kpiReportRef.length===4?_kpiReportRef:String(curY);
+    pSel=`<select class="form-select" style="width:auto" onchange="_kpiReportRef=this.value;renderAdmin()">
+      ${years.map(y=>`<option value="${y}" ${String(y)===ry?'selected':''}>${y}</option>`).join('')}
+    </select>`;
+  }
+  const period=getPeriodRange(_kpiReportType,_kpiReportRef);
+  const activeKpis=(S.kpis||[]).filter(k=>k.active);
+  const rows=activeKpis.map(k=>{const val=computeKpi(k.metric,period?.from,period?.to);const met=k.targetDirection==='lte'?val<=k.target:val>=k.target;return{k,val,met};});
+  const metCount=rows.filter(r=>r.met).length;
+  el.innerHTML=`
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px;padding:16px;background:var(--sand-pale);border-radius:8px">
+      <div><label class="form-label" style="margin-bottom:4px">Report Type</label>
+        <select class="form-select" style="width:auto" onchange="_kpiReportType=this.value;_kpiReportRef='';renderAdmin()">
+          <option value="monthly" ${_kpiReportType==='monthly'?'selected':''}>Monthly</option>
+          <option value="quarterly" ${_kpiReportType==='quarterly'?'selected':''}>Quarterly</option>
+          <option value="annual" ${_kpiReportType==='annual'?'selected':''}>Annual</option>
+        </select>
+      </div>
+      <div><label class="form-label" style="margin-bottom:4px">Period</label>${pSel}</div>
+      <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <button class="btn btn-secondary" onclick="previewKpiEmail()">👁 Preview Email</button>
+        <button class="btn btn-primary" onclick="sendKpiReport()">📧 Email Report Now</button>
+      </div>
+    </div>
+    ${period?`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <span style="font-weight:700;font-size:.95rem;color:var(--wood)">📈 ${period.label} — ${cap(_kpiReportType)} Report</span>
+      <span class="badge badge-green">${metCount}/${rows.length} KPIs on target</span>
+    </div>
+    ${rows.length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-bottom:20px">
+      ${rows.map(({k,val,met})=>{const m=KPI_METRICS[k.metric]||{unit:''};return`<div class="card" style="padding:14px;border-left:4px solid ${met?'var(--moss)':'var(--danger)'}">
+        <div style="font-size:.68rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${cap(k.frequency)} · ${m.label}</div>
+        <div style="font-weight:700;font-size:.85rem;color:var(--wood);margin-bottom:8px">${esc(k.name)}</div>
+        <div style="font-size:1.8rem;font-weight:800;color:${met?'var(--moss)':'var(--danger)'};">${val}${m.unit==='%'?'%':''}<span style="font-size:.75rem;font-weight:400;color:var(--muted);margin-left:4px">${m.unit!=='%'?m.unit:''}</span></div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:6px">Target: ${k.targetDirection==='lte'?'≤':'≥'} ${k.target}${m.unit==='%'?'%':' '+m.unit} &nbsp;${met?'✅':'❌'} ${met?'Met':'Not met'}</div>
+      </div>`;}).join('')}
+    </div>`:`<div class="empty-state"><div class="empty-icon">📊</div><p>No active KPIs. <button class="btn btn-secondary btn-sm" onclick="_kpiSubTab='kpis';renderAdmin()">Add KPIs →</button></p></div>`}`
+    :''}`;
+}
+
+function renderKpiEmailSettings(el){
+  el.innerHTML=`
+    <div style="display:grid;gap:20px;max-width:620px">
+      <div class="card" style="padding:18px">
+        <div class="card-title">📬 Default Report Recipients</div>
+        <div class="card-sub" style="margin-bottom:12px">Comma-separated email addresses. These receive all emailed reports.</div>
+        <textarea class="form-input" id="kpi-recipients" rows="2" placeholder="admin@mckenzieandco.co.nz, ceo@mckenzieandco.co.nz">${esc(S.reportRecipients||'')}</textarea>
+        <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="saveKpiRecipients()">Save Recipients</button>
+      </div>
+      <div class="card" style="padding:18px">
+        <div class="card-title">⏰ Auto-Schedule</div>
+        <div class="card-sub" style="margin-bottom:12px">Automatic reports are sent by a scheduled Azure Function (runs on the 1st of each period). Requires SMTP configuration below.</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem"><input type="checkbox" id="kpi-auto-m" ${S.kpiAutoMonthly?'checked':''} style="width:16px;height:16px"/> Monthly — 1st of each month at 8am</label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem"><input type="checkbox" id="kpi-auto-q" ${S.kpiAutoQuarterly?'checked':''} style="width:16px;height:16px"/> Quarterly — 1 Jan, 1 Apr, 1 Jul, 1 Oct at 8am</label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem"><input type="checkbox" id="kpi-auto-a" ${S.kpiAutoAnnual?'checked':''} style="width:16px;height:16px"/> Annual — 1 January at 8am</label>
+        </div>
+        <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="saveKpiAutoSchedule()">Save Schedule</button>
+      </div>
+      <div class="card" style="padding:18px;background:var(--sand-pale)">
+        <div class="card-title">🔧 SMTP Configuration (Azure App Settings)</div>
+        <div class="card-sub" style="margin-bottom:12px">Set these in Azure Portal → your Static Web App → Configuration → Application settings. For Office 365, use an app password or SMTP AUTH-enabled service account.</div>
+        <div style="font-family:monospace;font-size:.78rem;background:var(--wood);color:#e8e4dc;padding:14px;border-radius:6px;line-height:2">
+          SMTP_HOST=smtp.office365.com<br>SMTP_PORT=587<br>SMTP_USER=reports@mckenzieandco.co.nz<br>SMTP_PASS=your-app-password<br>SMTP_FROM=McKenzie Growth &lt;reports@mckenzieandco.co.nz&gt;
+        </div>
+      </div>
+    </div>`;
+}
+
+function saveKpiRecipients(){S.reportRecipients=document.getElementById('kpi-recipients').value.trim();save();showToast('Recipients saved ✓');}
+function saveKpiAutoSchedule(){S.kpiAutoMonthly=document.getElementById('kpi-auto-m').checked;S.kpiAutoQuarterly=document.getElementById('kpi-auto-q').checked;S.kpiAutoAnnual=document.getElementById('kpi-auto-a').checked;save();showToast('Auto-schedule saved ✓');}
+
+function openKpiModal(editId){
+  document.getElementById('kpi-modal-title').textContent=editId?'Edit KPI':'Add KPI';
+  document.getElementById('kpi-edit-id').value=editId||'';
+  if(editId){
+    const k=(S.kpis||[]).find(x=>x.id===editId);if(!k)return;
+    document.getElementById('kpi-name').value=k.name||'';
+    document.getElementById('kpi-desc').value=k.description||'';
+    document.getElementById('kpi-metric').value=k.metric||'';
+    document.getElementById('kpi-freq').value=k.frequency||'monthly';
+    document.getElementById('kpi-target').value=k.target||'';
+    document.getElementById('kpi-dir').value=k.targetDirection||'gte';
+    document.getElementById('kpi-active').checked=k.active!==false;
+  }else{
+    ['kpi-name','kpi-desc','kpi-target'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('kpi-metric').value='';
+    document.getElementById('kpi-freq').value='monthly';
+    document.getElementById('kpi-dir').value='gte';
+    document.getElementById('kpi-active').checked=true;
+  }
+  document.getElementById('modal-kpi').classList.add('open');
+}
+
+function saveKpi(){
+  const name=document.getElementById('kpi-name').value.trim();
+  const metric=document.getElementById('kpi-metric').value;
+  const freq=document.getElementById('kpi-freq').value;
+  const target=parseFloat(document.getElementById('kpi-target').value);
+  if(!name||!metric||!freq||isNaN(target)){alert('Name, metric, frequency and target are required.');return;}
+  if(!S.kpis)S.kpis=[];
+  const editId=document.getElementById('kpi-edit-id').value;
+  const kpi={id:editId||'kpi'+Date.now(),name,description:document.getElementById('kpi-desc').value.trim(),metric,frequency:freq,target,targetDirection:document.getElementById('kpi-dir').value,active:document.getElementById('kpi-active').checked};
+  if(editId){const i=S.kpis.findIndex(k=>k.id===editId);if(i>=0)S.kpis[i]=kpi;else S.kpis.push(kpi);}
+  else S.kpis.push(kpi);
+  save();closeModal('modal-kpi');renderAdmin();
+}
+
+function deleteKpi(id){if(!confirm('Delete this KPI?'))return;S.kpis=(S.kpis||[]).filter(k=>k.id!==id);save();renderAdmin();}
+
+function buildKpiReportHtml(period,type,rows){
+  const metCount=rows.filter(r=>r.met).length;
+  const esc2=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return`<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+body{font-family:Arial,sans-serif;max-width:620px;margin:0 auto;padding:24px;color:#3d3935;background:#fff}
+h1{color:#48773c;margin:0 0 4px}.sub{color:#888;font-size:.88rem;margin-bottom:20px}
+.summary{background:#f5f3ee;border-radius:8px;padding:16px 24px;margin-bottom:24px;display:flex;align-items:center;gap:20px}
+.score{font-size:2.2rem;font-weight:800;color:#48773c}.sl{font-size:.85rem;color:#666}
+table{width:100%;border-collapse:collapse;margin-bottom:20px}
+th{background:#3d3935;color:#fff;padding:8px 12px;text-align:left;font-size:.78rem;font-weight:600}
+td{padding:8px 12px;border-bottom:1px solid #e8e4dc;font-size:.83rem}
+tr:nth-child(even)td{background:#faf9f6}
+.met{color:#48773c;font-weight:700}.notmet{color:#c0392b;font-weight:700}
+.foot{font-size:.7rem;color:#aaa;border-top:1px solid #e8e4dc;padding-top:12px;margin-top:4px}
+</style></head><body>
+<h1>McKenzie Growth — KPI Report</h1>
+<div class="sub">${esc2(period.label)} · ${cap(type)} report · Generated ${new Date().toLocaleDateString('en-NZ',{day:'numeric',month:'long',year:'numeric'})}</div>
+<div class="summary"><div><div class="score">${metCount}/${rows.length}</div><div class="sl">KPIs on target</div></div></div>
+<table><thead><tr><th>KPI</th><th>Metric</th><th>Result</th><th>Target</th><th>Status</th></tr></thead><tbody>
+${rows.map(r=>{const m=KPI_METRICS[r.k.metric]||{unit:''};return`<tr><td><strong>${esc2(r.k.name)}</strong>${r.k.description?`<br><span style="color:#888;font-size:.73rem">${esc2(r.k.description)}</span>`:''}</td><td>${m.label}</td><td>${r.val}${m.unit==='%'?'%':' '+m.unit}</td><td>${r.k.targetDirection==='lte'?'≤':'≥'} ${r.k.target}${m.unit==='%'?'%':' '+m.unit}</td><td class="${r.met?'met':'notmet'}">${r.met?'✅ Met':'❌ Not met'}</td></tr>`;}).join('')}
+</tbody></table>
+<div class="foot">McKenzie Growth Platform · This report was generated automatically.</div>
+</body></html>`;
+}
+
+function previewKpiEmail(){
+  const period=getPeriodRange(_kpiReportType,_kpiReportRef);if(!period){alert('Select a period first.');return;}
+  const activeKpis=(S.kpis||[]).filter(k=>k.active);
+  if(!activeKpis.length){alert('No active KPIs. Add KPIs in the KPI Library tab.');return;}
+  const rows=activeKpis.map(k=>{const val=computeKpi(k.metric,period.from,period.to);const met=k.targetDirection==='lte'?val<=k.target:val>=k.target;return{k,val,met};});
+  const html=buildKpiReportHtml(period,_kpiReportType,rows);
+  const w=window.open('','_blank');w.document.write(html);w.document.close();
+}
+
+async function sendKpiReport(){
+  const period=getPeriodRange(_kpiReportType,_kpiReportRef);if(!period){alert('Select a valid period.');return;}
+  const activeKpis=(S.kpis||[]).filter(k=>k.active);if(!activeKpis.length){alert('No active KPIs.');return;}
+  const recipients=(S.reportRecipients||'').split(',').map(e=>e.trim()).filter(Boolean);
+  if(!recipients.length){alert('No recipients. Add email addresses in Email Settings tab.');return;}
+  const rows=activeKpis.map(k=>{const val=computeKpi(k.metric,period.from,period.to);const met=k.targetDirection==='lte'?val<=k.target:val>=k.target;return{k,val,met};});
+  const html=buildKpiReportHtml(period,_kpiReportType,rows);
+  const metCount=rows.filter(r=>r.met).length;
+  const btn=event?.target;if(btn){btn.disabled=true;btn.textContent='Sending…';}
+  try{
+    const resp=await fetch('/api/sendReport',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:`McKenzie Growth KPI Report — ${period.label} (${metCount}/${rows.length} on target)`,to:recipients,html})});
+    const result=await resp.json();
+    if(resp.ok&&result.ok){showToast(`Report emailed to ${recipients.length} recipient${recipients.length!==1?'s':''} ✓`);}
+    else alert('Send failed: '+(result.error||'Check SMTP settings in Azure App Settings.'));
+  }catch(e){alert('Send failed: '+e.message);}
+  finally{if(btn){btn.disabled=false;btn.textContent='📧 Email Report Now';}}
+}
+
+function showToast(msg){
+  let t=document.getElementById('toast-msg');
+  if(!t){t=document.createElement('div');t.id='toast-msg';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--wood);color:#fff;padding:10px 22px;border-radius:24px;font-size:.85rem;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.25);transition:opacity .3s';document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity='1';clearTimeout(t._tid);t._tid=setTimeout(()=>t.style.opacity='0',3000);
+}
 
 // ══════════════════════════════════════════════════════════
 // SKILLS CATALOG ADMIN
