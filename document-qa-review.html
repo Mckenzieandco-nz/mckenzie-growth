@@ -1,0 +1,2678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Document QA Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --moss:#48773c;--moss-dark:#3a6130;--moss-light:#5a8f4c;--moss-pale:#eef3eb;
+  --water:#abc6ca;--water-light:#d5e3e5;--water-pale:#eef4f5;
+  --wood:#3d3935;--wood-light:#5a5552;
+  --sand:#d2cdbe;--sand-light:#e8e5db;--sand-pale:#f5f3ef;
+  --bg:#f7f6f3;--card:#fff;--border:#e5e2db;--text:#3d3935;--muted:#8a857d;
+  --red:#c0392b;--amber:#d4880f;--green:#48773c;--blue:#2c6b8a;
+}
+body{font-family:'Inter',Arial,sans-serif;background:var(--bg);color:var(--text);font-size:14px;letter-spacing:-0.01em;min-height:100vh}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:var(--sand);border-radius:3px}
+
+/* Top brand bar */
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:12px 32px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.topbar .logo{height:32px;width:auto;display:block}
+.topbar .logo-divider{width:1px;height:28px;background:var(--border)}
+.topbar .app-name{font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:2px}
+.topbar .topbar-meta{margin-left:auto;font-size:.7rem;color:var(--muted);font-weight:500;display:flex;align-items:center;gap:10px}
+.topbar .topbar-meta .who{display:flex;align-items:center;gap:7px;background:var(--sand-pale);border:1px solid var(--border);padding:4px 10px 4px 4px;border-radius:18px;color:var(--wood);font-weight:600}
+.topbar .topbar-meta .who .a{width:22px;height:22px;border-radius:50%;background:var(--moss);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.6rem}
+@media print{.topbar{padding:8px 16px}.tabs{display:none}}
+
+header{background:linear-gradient(135deg,var(--moss) 0%,var(--moss-dark) 100%);color:#fff;padding:22px 32px;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
+header h1{font-size:1.4rem;font-weight:800;letter-spacing:-0.02em}
+header p{font-size:.82rem;opacity:.88;margin-top:3px}
+.tabs{display:flex;gap:4px;background:rgba(255,255,255,0.12);padding:4px;border-radius:8px}
+.tab{padding:8px 18px;font-size:.78rem;font-weight:700;color:#fff;opacity:.75;border-radius:6px;cursor:pointer;transition:all .15s;border:none;background:transparent;font-family:inherit;letter-spacing:.2px}
+.tab:hover{opacity:1}
+.tab.active{background:#fff;color:var(--moss-dark);opacity:1}
+
+main{max-width:1500px;margin:22px auto;padding:0 22px}
+.view{display:none}
+.view.active{display:block}
+
+/* New review layout */
+.new-review{display:grid;grid-template-columns:420px 1fr;gap:20px}
+@media(max-width:1100px){.new-review{grid-template-columns:1fr}}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.03)}
+.card h2{font-size:.85rem;font-weight:800;margin-bottom:3px;color:var(--text);text-transform:uppercase;letter-spacing:.6px}
+.card p.sub{font-size:.72rem;color:var(--muted);margin-bottom:14px}
+
+.panel-section{margin-bottom:16px;padding-bottom:14px;border-bottom:1px dashed var(--border)}
+.panel-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.panel-section h3{font-size:.7rem;font-weight:800;color:var(--moss-dark);text-transform:uppercase;letter-spacing:1px;margin-bottom:9px}
+
+.field{margin-bottom:9px}
+.field label{display:block;font-size:.72rem;font-weight:600;color:var(--text);margin-bottom:4px}
+.field .hint{font-size:.64rem;color:var(--muted);margin-top:2px}
+.field input[type=text],.field select,.field textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:5px;font-size:.82rem;font-family:inherit;background:#fff;color:var(--text)}
+.field textarea{resize:vertical;min-height:60px}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--moss);box-shadow:0 0 0 3px var(--moss-pale)}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field-row .hint{color:var(--moss-dark);font-weight:600}
+
+/* Upload */
+.drop-zone{border:2px dashed var(--sand);border-radius:8px;padding:24px 14px;text-align:center;background:var(--sand-pale);cursor:pointer;transition:all .2s}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--moss);background:var(--moss-pale)}
+.drop-zone .ico{font-size:1.8rem;margin-bottom:6px}
+.drop-zone .title{font-size:.82rem;font-weight:700;color:var(--wood)}
+.drop-zone .desc{font-size:.68rem;color:var(--muted);margin-top:3px}
+.file-list{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.file-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--sand-pale);border:1px solid var(--border);border-radius:6px;font-size:.76rem}
+.file-row .fico{font-size:1rem}
+.file-row .fname{flex:1;font-weight:600;color:var(--wood);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-row .fsize{color:var(--muted);font-size:.68rem}
+.file-row .del{background:none;border:none;color:var(--red);cursor:pointer;font-size:1rem;padding:0 4px}
+
+/* QA checks */
+.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.check-item{display:flex;align-items:flex-start;gap:8px;padding:10px 11px;background:#fff;border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .15s;user-select:none}
+.check-item:hover{border-color:var(--moss-light);background:var(--moss-pale)}
+.check-item input{margin-top:2px;accent-color:var(--moss);cursor:pointer}
+.check-item:has(input:checked){background:var(--moss-pale);border-color:var(--moss)}
+.check-item .ci-title{font-size:.76rem;font-weight:700;color:var(--wood)}
+.check-item .ci-desc{font-size:.64rem;color:var(--muted);margin-top:2px;line-height:1.4}
+
+/* Buttons */
+button.primary{background:var(--moss);color:#fff;border:none;padding:11px 16px;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;width:100%;margin-top:8px;transition:background .15s}
+button.primary:hover{background:var(--moss-dark)}
+button.primary:disabled{background:var(--sand);cursor:not-allowed}
+button.secondary{background:#fff;color:var(--wood-light);border:1px solid var(--border);padding:8px 14px;border-radius:6px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:inherit}
+button.secondary:hover{border-color:var(--moss);color:var(--moss-dark)}
+
+/* Results panel */
+.results-empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.results-empty .eico{font-size:3rem;margin-bottom:10px;opacity:.4}
+.results-empty .etitle{font-size:.92rem;font-weight:700;color:var(--wood-light);margin-bottom:4px}
+.results-empty .edesc{font-size:.76rem;max-width:380px;margin:0 auto}
+
+/* Running state */
+.running-state{text-align:center;padding:60px 20px}
+.spinner{width:48px;height:48px;border:4px solid var(--moss-pale);border-top-color:var(--moss);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.running-state h3{font-size:.95rem;font-weight:800;color:var(--wood);margin-bottom:4px}
+.running-state p{font-size:.76rem;color:var(--muted);margin-bottom:16px}
+.running-steps{max-width:360px;margin:0 auto;text-align:left;display:flex;flex-direction:column;gap:6px}
+.rs-step{display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--sand-pale);border-radius:5px;font-size:.74rem;color:var(--muted);transition:all .25s}
+.rs-step.active{background:var(--moss-pale);color:var(--moss-dark);font-weight:700}
+.rs-step.done{background:#fff;color:var(--wood-light);border:1px solid var(--moss-light)}
+.rs-step .rs-ico{width:18px;height:18px;border-radius:50%;background:var(--border);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:900}
+.rs-step.active .rs-ico{background:var(--moss)}
+.rs-step.done .rs-ico{background:var(--moss)}
+.rs-step.done .rs-ico::before{content:"✓"}
+.rs-step.active .rs-ico::before{content:"…"}
+
+/* Score header */
+.score-header{display:flex;align-items:center;gap:22px;padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.score-ring{position:relative;width:120px;height:120px;flex-shrink:0}
+.score-ring svg{transform:rotate(-90deg)}
+.score-ring .score-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800}
+.score-ring .score-val .sv-num{font-size:2rem;line-height:1;color:var(--wood)}
+.score-ring .score-val .sv-lbl{font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;margin-top:4px}
+.score-meta{flex:1;min-width:200px}
+.score-meta .doc-name{font-size:1rem;font-weight:800;color:var(--wood);margin-bottom:2px}
+.score-meta .doc-purpose{font-size:.76rem;color:var(--muted);margin-bottom:10px}
+.score-pill{display:inline-block;padding:4px 12px;border-radius:20px;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.6px}
+.score-pill.excellent{background:var(--moss);color:#fff}
+.score-pill.good{background:var(--moss-pale);color:var(--moss-dark);border:1px solid var(--moss-light)}
+.score-pill.fair{background:#fef3e0;color:#8a6a10;border:1px solid var(--amber)}
+.score-pill.poor{background:#faecea;color:var(--red);border:1px solid var(--red)}
+
+/* Breakdown */
+.breakdown{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:20px}
+.bd-card{background:var(--sand-pale);border:1px solid var(--border);border-radius:6px;padding:10px 12px}
+.bd-card .bd-label{font-size:.66rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.bd-card .bd-val{font-size:1.1rem;font-weight:800;color:var(--wood);margin:4px 0 6px}
+.bd-bar{background:#fff;border-radius:3px;height:5px;overflow:hidden;border:1px solid var(--border)}
+.bd-bar-fill{height:100%;border-radius:3px;transition:width .6s}
+.bd-bar-fill.hi{background:var(--moss)}
+.bd-bar-fill.md{background:var(--amber)}
+.bd-bar-fill.lo{background:var(--red)}
+
+/* Reviewer chip in score header */
+.reviewer-chip{display:inline-flex;align-items:center;gap:7px;background:var(--sand-pale);border:1px solid var(--border);padding:4px 11px 4px 4px;border-radius:20px;font-size:.72rem;color:var(--wood);font-weight:600;margin-right:6px}
+.reviewer-chip .ravatar{width:22px;height:22px;border-radius:50%;background:var(--moss);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.6rem}
+.reviewer-chip .rname{line-height:1.1}
+.reviewer-chip .rrole{font-size:.6rem;color:var(--muted);font-weight:600}
+
+/* Issues */
+.issues-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.issues-head h3{font-size:.88rem;font-weight:800;color:var(--wood);text-transform:uppercase;letter-spacing:.5px}
+.filter-pills{display:flex;gap:5px;flex-wrap:wrap}
+.fp{font-size:.66rem;font-weight:700;padding:3px 10px;border-radius:12px;cursor:pointer;background:#fff;border:1px solid var(--border);color:var(--muted)}
+.fp.active{background:var(--moss);color:#fff;border-color:var(--moss)}
+
+.issue-list{display:flex;flex-direction:column;gap:8px}
+.issue{background:#fff;border:1px solid var(--border);border-left:3px solid var(--muted);border-radius:6px;padding:12px 14px}
+.issue.sev-high{border-left-color:var(--red)}
+.issue.sev-medium{border-left-color:var(--amber)}
+.issue.sev-low{border-left-color:var(--moss-light)}
+.issue-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px;flex-wrap:wrap}
+.issue-title{font-size:.82rem;font-weight:700;color:var(--wood)}
+.issue-meta{display:flex;gap:6px;flex-wrap:wrap}
+.sev-badge{font-size:.6rem;font-weight:800;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.5px}
+.sev-badge.high{background:#faecea;color:var(--red)}
+.sev-badge.medium{background:#fef3e0;color:#8a6a10}
+.sev-badge.low{background:var(--moss-pale);color:var(--moss-dark)}
+.cat-badge{font-size:.6rem;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--sand-pale);color:var(--wood-light)}
+.issue-desc{font-size:.76rem;color:var(--wood-light);line-height:1.5;margin-bottom:6px}
+.issue-quote{font-size:.72rem;color:var(--muted);padding:6px 10px;background:var(--sand-pale);border-left:2px solid var(--sand);border-radius:3px;margin-top:6px;font-style:italic}
+.issue-fix{font-size:.72rem;color:var(--moss-dark);margin-top:6px}
+.issue-fix strong{font-weight:700}
+
+/* Issue status states + actions */
+.issue{cursor:pointer;transition:opacity .15s,background .15s}
+.issue:hover{background:#fcfbf8}
+.issue.status-acknowledged{background:#fafaf8;border-left-color:var(--wood-light)!important}
+.issue.status-acknowledged .issue-title{color:var(--wood-light)}
+.issue.status-false-flag{opacity:.55;background:#f5f4f1;border-left-color:var(--muted)!important}
+.issue.status-false-flag .issue-title{text-decoration:line-through;color:var(--muted)}
+.issue.status-false-flag .issue-quote,.issue.status-false-flag .issue-fix{filter:grayscale(.6)}
+.status-stamp{font-size:.6rem;font-weight:800;padding:2px 9px;border-radius:10px;text-transform:uppercase;letter-spacing:.5px}
+.status-stamp.acknowledged{background:#eef4f5;color:#3a6a70;border:1px solid var(--water)}
+.status-stamp.false-flag{background:#f5f4f1;color:var(--muted);border:1px solid var(--border)}
+.issue-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);flex-wrap:wrap}
+.iact{font-size:.66rem;font-weight:700;padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:#fff;color:var(--wood-light);cursor:pointer;font-family:inherit;letter-spacing:.2px;transition:all .15s}
+.iact:hover{border-color:var(--moss);color:var(--moss-dark)}
+.iact.ack{background:var(--water-pale);color:#3a6a70;border-color:var(--water)}
+.iact.ack:hover{background:var(--water-light)}
+.iact.flag{background:#fafaf8;color:var(--muted);border-color:var(--border)}
+.iact.flag:hover{background:#f0eeea;color:var(--red);border-color:var(--red)}
+.iact.reset{background:transparent;color:var(--muted)}
+.iact.active{background:var(--moss);color:#fff;border-color:var(--moss)}
+.iact.active:hover{background:var(--moss-dark);color:#fff}
+
+/* Adjusted score note */
+.score-adj{font-size:.66rem;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.score-adj .from{text-decoration:line-through}
+.score-adj .arrow{color:var(--moss)}
+.score-adj .ff-count{background:var(--sand-pale);padding:1px 7px;border-radius:8px;font-weight:700;color:var(--wood-light)}
+
+/* Reports view */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:22px}
+.stat{background:#fff;border:1px solid var(--border);border-left:3px solid var(--moss);border-radius:8px;padding:16px 18px}
+.stat.blue{border-left-color:var(--blue)}
+.stat.amber{border-left-color:var(--amber)}
+.stat.wood{border-left-color:var(--wood-light)}
+.stat .label{font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)}
+.stat .value{font-size:1.5rem;font-weight:800;margin-top:4px;color:var(--wood)}
+.stat .note{font-size:.66rem;color:var(--muted);margin-top:2px}
+
+.two-col{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;margin-bottom:20px}
+@media(max-width:1000px){.two-col{grid-template-columns:1fr}}
+
+.chart-wrap{position:relative;height:280px;margin-top:8px}
+
+.common-issues-list{display:flex;flex-direction:column;gap:7px;margin-top:6px}
+.ci-row{display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--sand-pale);border-radius:5px}
+.ci-row .ci-rank{font-size:.66rem;font-weight:800;width:22px;color:var(--muted)}
+.ci-row .ci-name{flex:1;font-size:.76rem;font-weight:600;color:var(--wood)}
+.ci-row .ci-count{font-size:.7rem;font-weight:800;color:var(--moss-dark);background:#fff;border:1px solid var(--border);padding:2px 8px;border-radius:10px}
+
+.recent-table{width:100%;border-collapse:collapse;font-size:.76rem;margin-top:6px}
+.recent-table th{background:var(--sand-pale);text-align:left;padding:8px 10px;font-weight:800;color:var(--muted);text-transform:uppercase;font-size:.62rem;letter-spacing:.6px;border-bottom:1px solid var(--border)}
+.recent-table td{padding:9px 10px;border-bottom:1px solid var(--border);color:var(--wood-light)}
+.recent-table tr:last-child td{border-bottom:none}
+.recent-table tr:hover td{background:var(--sand-pale)}
+.recent-table .score-cell{font-weight:800;font-variant-numeric:tabular-nums}
+.recent-table .score-cell.hi{color:var(--moss)}
+.recent-table .score-cell.md{color:var(--amber)}
+.recent-table .score-cell.lo{color:var(--red)}
+.recent-table .view-btn{background:none;border:none;color:var(--moss-dark);font-weight:700;cursor:pointer;font-size:.74rem;font-family:inherit;padding:0}
+.recent-table .view-btn:hover{text-decoration:underline}
+.recent-table .empty{text-align:center;color:var(--muted);padding:24px;font-style:italic}
+
+/* Admin */
+.admin-wrap{max-width:880px;margin:0 auto}
+.admin-gate{max-width:420px;margin:60px auto;background:#fff;border:1px solid var(--border);border-radius:10px;padding:30px}
+.admin-gate h2{font-size:1rem;font-weight:800;color:var(--wood);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.admin-gate p{font-size:.78rem;color:var(--muted);margin-bottom:18px;line-height:1.5}
+.admin-gate .warn{background:#fef3e0;border-left:3px solid var(--amber);padding:9px 12px;border-radius:4px;font-size:.7rem;color:#8a6a10;margin-top:14px;line-height:1.5}
+.admin-section{background:#fff;border:1px solid var(--border);border-radius:10px;padding:22px;margin-bottom:16px}
+.admin-section h3{font-size:.88rem;font-weight:800;color:var(--wood);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.admin-section .sec-sub{font-size:.74rem;color:var(--muted);margin-bottom:16px}
+.admin-section.danger{border-color:#f5c0b8}
+.admin-section.danger h3{color:var(--red)}
+.key-row{display:flex;gap:8px;align-items:flex-start}
+.key-row .field{flex:1;margin-bottom:0}
+.test-status{margin-top:8px;padding:8px 12px;border-radius:5px;font-size:.74rem;font-weight:600;display:none}
+.test-status.ok{display:block;background:var(--moss-pale);color:var(--moss-dark);border:1px solid var(--moss-light)}
+.test-status.err{display:block;background:#faecea;color:var(--red);border:1px solid var(--red)}
+.test-status.info{display:block;background:var(--water-pale);color:#3a6a70;border:1px solid var(--water)}
+.prompt-area{width:100%;min-height:220px;font-family:'Menlo','Consolas',monospace;font-size:.74rem;line-height:1.55;padding:12px;border:1px solid var(--border);border-radius:6px;background:var(--sand-pale);color:var(--wood);resize:vertical}
+.prompt-area:focus{outline:none;border-color:var(--moss);background:#fff;box-shadow:0 0 0 3px var(--moss-pale)}
+.placeholder-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;margin-bottom:8px}
+.placeholder-tag{font-family:'Menlo','Consolas',monospace;font-size:.68rem;background:var(--water-pale);color:#3a6a70;padding:3px 8px;border-radius:4px;border:1px solid var(--water);cursor:pointer}
+.placeholder-tag:hover{background:var(--water-light)}
+.check-prompts{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.check-prompt-row{background:var(--sand-pale);border:1px solid var(--border);border-radius:6px;padding:10px 12px}
+.check-prompt-row .cpr-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.check-prompt-row .cpr-title{font-size:.76rem;font-weight:800;color:var(--wood)}
+.check-prompt-row .cpr-desc{font-size:.66rem;color:var(--muted)}
+.check-prompt-row textarea{width:100%;min-height:54px;padding:7px 9px;border:1px solid var(--border);border-radius:4px;font-size:.72rem;font-family:'Menlo','Consolas',monospace;background:#fff;resize:vertical}
+.check-prompt-row textarea:focus{outline:none;border-color:var(--moss)}
+.btn-row-2{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.live-badge{display:inline-block;font-size:.58rem;font-weight:800;padding:2px 7px;border-radius:10px;letter-spacing:.5px;text-transform:uppercase;margin-left:8px;vertical-align:middle}
+.live-badge.mock{background:var(--sand-pale);color:var(--wood-light);border:1px solid var(--border)}
+.live-badge.live{background:var(--moss);color:#fff}
+
+/* Mode toggle (new doc vs new version) */
+.mode-toggle{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--sand-pale);border:1px solid var(--border);border-radius:8px;padding:4px;margin-bottom:14px}
+.mode-toggle.three{grid-template-columns:1fr 1fr 1fr}
+.mode-btn{padding:9px 12px;font-size:.74rem;font-weight:700;color:var(--muted);border:none;background:transparent;border-radius:5px;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;letter-spacing:.1px}
+.mode-btn:hover{color:var(--wood)}
+.mode-btn.active{background:#fff;color:var(--moss-dark);box-shadow:0 1px 2px rgba(0,0,0,0.05)}
+
+/* Folder/package picker */
+.folder-zone{border:2px dashed var(--moss-light);border-radius:8px;padding:24px 14px;text-align:center;background:var(--moss-pale);cursor:pointer;transition:all .2s;margin-bottom:10px}
+.folder-zone:hover{border-color:var(--moss);background:#e3eddd}
+.folder-zone .ico{font-size:1.8rem;margin-bottom:6px}
+.folder-zone .title{font-size:.82rem;font-weight:700;color:var(--moss-dark)}
+.folder-zone .desc{font-size:.68rem;color:var(--muted);margin-top:3px}
+.pkg-summary{background:var(--moss-pale);border:1px solid var(--moss-light);border-radius:7px;padding:10px 12px;margin-bottom:10px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+.pkg-summary .pkg-name{font-size:.8rem;font-weight:800;color:var(--wood)}
+.pkg-summary .pkg-meta{font-size:.68rem;color:var(--muted);margin-top:2px}
+.pkg-summary .pkg-clear{background:#fff;border:1px solid var(--border);color:var(--red);padding:5px 10px;border-radius:4px;font-size:.68rem;font-weight:700;cursor:pointer;font-family:inherit}
+.file-tree{max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;background:#fff;margin-bottom:8px}
+.file-tree-toolbar{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--sand-pale);border-bottom:1px solid var(--border);font-size:.68rem;color:var(--muted);font-weight:700}
+.file-tree-toolbar a{color:var(--moss-dark);cursor:pointer;font-weight:700;text-decoration:none}
+.file-tree-toolbar a:hover{text-decoration:underline}
+.ftree-row{display:grid;grid-template-columns:auto auto 1fr auto auto;gap:9px;align-items:center;padding:6px 10px;font-size:.74rem;border-bottom:1px solid var(--light);transition:background .1s}
+.ftree-row:last-child{border-bottom:none}
+.ftree-row:hover{background:var(--sand-pale)}
+.ftree-row input{accent-color:var(--moss);cursor:pointer;margin:0}
+.ftree-row .fico{font-size:.95rem}
+.ftree-row .fpath{color:var(--wood);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.ftree-row .fpath .dir{color:var(--muted);font-weight:500}
+.ftree-row .fcat{font-size:.6rem;font-weight:800;padding:2px 7px;border-radius:9px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+.fcat.report{background:var(--moss-pale);color:var(--moss-dark)}
+.fcat.calc{background:var(--water-pale);color:#3a6a70}
+.fcat.drawing{background:#fef3e0;color:#8a6a10}
+.fcat.image{background:#f0e8f5;color:#6b3fa0}
+.fcat.email{background:var(--sand-pale);color:var(--wood-light)}
+.fcat.other{background:var(--light);color:var(--muted)}
+.fcat.skip{background:#f5f4f1;color:var(--muted);text-decoration:line-through}
+.ftree-row .fsize{font-size:.66rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ftree-row.skipped{opacity:.5}
+.ftree-row.skipped .fpath{text-decoration:line-through;color:var(--muted)}
+.pkg-stats{display:flex;gap:10px;flex-wrap:wrap;font-size:.7rem;color:var(--muted);margin-bottom:6px}
+.pkg-stats span strong{color:var(--wood);font-weight:800}
+
+/* Package results */
+.pkg-overview{background:var(--moss-pale);border:1px solid var(--moss-light);border-radius:8px;padding:14px 16px;margin-bottom:16px}
+.pkg-overview .pko-head{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:10px}
+.pkg-overview .pko-title{font-size:.95rem;font-weight:800;color:var(--wood)}
+.pkg-overview .pko-sub{font-size:.7rem;color:var(--muted);margin-top:2px}
+.pkg-overview .pko-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:6px}
+.pkg-overview .pko-stat{background:#fff;border:1px solid var(--moss-light);border-radius:5px;padding:8px 10px}
+.pkg-overview .pko-stat .pkos-lbl{font-size:.6rem;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.4px}
+.pkg-overview .pko-stat .pkos-val{font-size:1.05rem;font-weight:800;color:var(--wood);margin-top:2px;font-variant-numeric:tabular-nums}
+.pkg-files-tbl{width:100%;border-collapse:collapse;font-size:.74rem}
+.pkg-files-tbl th{background:var(--sand-pale);text-align:left;padding:7px 10px;font-weight:800;color:var(--muted);text-transform:uppercase;font-size:.6rem;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+.pkg-files-tbl td{padding:8px 10px;border-bottom:1px solid var(--light);color:var(--wood-light)}
+.pkg-files-tbl tr:hover td{background:var(--sand-pale)}
+.pkg-files-tbl .score-cell.hi{color:var(--moss);font-weight:800}
+.pkg-files-tbl .score-cell.md{color:var(--amber);font-weight:800}
+.pkg-files-tbl .score-cell.lo{color:var(--red);font-weight:800}
+.pkg-files-tbl .open-btn{background:none;border:none;color:var(--moss-dark);font-weight:700;cursor:pointer;font-family:inherit;font-size:.7rem;padding:0}
+.pkg-files-tbl .open-btn:hover{text-decoration:underline}
+.pkg-progress-bar{height:8px;background:var(--sand-pale);border-radius:4px;overflow:hidden;margin-top:8px}
+.pkg-progress-fill{height:100%;background:var(--moss);border-radius:4px;transition:width .25s}
+.pkg-progress-meta{font-size:.7rem;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between}
+
+/* Doc picker */
+.doc-picker{border:1px solid var(--border);border-radius:8px;background:var(--sand-pale);padding:10px;margin-bottom:14px;max-height:240px;overflow-y:auto}
+.doc-picker .dp-empty{text-align:center;padding:20px;color:var(--muted);font-size:.76rem;font-style:italic}
+.doc-pick-item{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;padding:9px 11px;background:#fff;border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .15s;margin-bottom:6px}
+.doc-pick-item:last-child{margin-bottom:0}
+.doc-pick-item:hover{border-color:var(--moss);background:var(--moss-pale)}
+.doc-pick-item .dpi-ico{font-size:1rem}
+.doc-pick-item .dpi-title{font-size:.78rem;font-weight:700;color:var(--wood);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.doc-pick-item .dpi-meta{font-size:.66rem;color:var(--muted);margin-top:1px}
+.doc-pick-item .dpi-v{background:var(--moss-pale);color:var(--moss-dark);border:1px solid var(--moss-light);font-size:.65rem;font-weight:800;padding:2px 7px;border-radius:10px;white-space:nowrap}
+.doc-pick-item .dpi-score{font-weight:800;font-variant-numeric:tabular-nums;font-size:.84rem}
+.doc-pick-item .dpi-score.hi{color:var(--moss)}
+.doc-pick-item .dpi-score.md{color:var(--amber)}
+.doc-pick-item .dpi-score.lo{color:var(--red)}
+
+/* Selected parent chip */
+.parent-chip{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--moss-pale);border:1px solid var(--moss-light);border-radius:7px;margin-bottom:14px}
+.parent-chip .pchip-ico{font-size:1rem}
+.parent-chip .pchip-body{flex:1;min-width:0}
+.parent-chip .pchip-lbl{font-size:.62rem;font-weight:800;color:var(--moss-dark);text-transform:uppercase;letter-spacing:.6px}
+.parent-chip .pchip-title{font-size:.82rem;font-weight:700;color:var(--wood);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.parent-chip .pchip-meta{font-size:.66rem;color:var(--muted)}
+.parent-chip .pchip-clear{background:none;border:none;color:var(--red);cursor:pointer;font-size:1.2rem;padding:0 4px}
+
+/* Version badge */
+.ver-badge{display:inline-block;background:var(--water-pale);color:#3a6a70;border:1px solid var(--water);font-size:.65rem;font-weight:800;padding:3px 9px;border-radius:11px;letter-spacing:.3px}
+.ver-badge.v1{background:var(--sand-pale);color:var(--wood-light);border-color:var(--border)}
+
+/* My Documents — compact list */
+.mydocs-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0 10px;padding:10px 12px;background:#fff;border:1px solid var(--border);border-radius:8px}
+.mydocs-toolbar .filter-grp{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mydocs-toolbar .filter-grp .grp-lbl{font-size:.62rem;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.mydocs-count{font-size:.72rem;color:var(--muted);font-weight:600}
+.mydocs-count strong{color:var(--wood);font-weight:800}
+
+.mydocs-table{width:100%;border-collapse:collapse;font-size:.78rem;background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.mydocs-table th{background:var(--sand-pale);text-align:left;padding:10px 12px;font-weight:800;color:var(--muted);text-transform:uppercase;font-size:.6rem;letter-spacing:.6px;border-bottom:1px solid var(--border);white-space:nowrap}
+.mydocs-table td{padding:11px 12px;border-bottom:1px solid var(--light);color:var(--wood-light);vertical-align:middle}
+.mydocs-table tbody tr{transition:background .1s}
+.mydocs-table tbody tr:hover td{background:var(--sand-pale)}
+.mydocs-table tbody tr.expanded td{background:var(--moss-pale)}
+.mydocs-table tbody tr:last-child td{border-bottom:none}
+.md-row-toggle{cursor:pointer}
+.md-tog-ico{display:inline-block;width:14px;color:var(--muted);font-size:.7rem;transition:transform .15s}
+.md-row-toggle.open .md-tog-ico{transform:rotate(90deg);color:var(--moss-dark)}
+.md-doc-cell{min-width:240px;max-width:340px}
+.md-doc-cell .md-fname{font-weight:700;color:var(--wood);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.md-doc-cell .md-doc-sub{font-size:.65rem;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.md-doc-cell .md-doc-sub .md-proj{color:var(--moss-dark);font-weight:700;font-variant-numeric:tabular-nums}
+.md-score{font-weight:800;font-size:.95rem;font-variant-numeric:tabular-nums;text-align:right}
+.md-score.hi{color:var(--moss)}.md-score.md{color:var(--amber)}.md-score.lo{color:var(--red)}
+.md-vbadge{display:inline-block;background:var(--moss-pale);color:var(--moss-dark);border:1px solid var(--moss-light);font-size:.62rem;font-weight:800;padding:1px 7px;border-radius:9px;font-variant-numeric:tabular-nums}
+.md-trend{font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.md-trend.up{background:var(--moss-pale);color:var(--moss-dark)}
+.md-trend.down{background:#faecea;color:var(--red)}
+.md-trend.flat{background:var(--sand-pale);color:var(--muted)}
+.md-spark{display:inline-flex;align-items:flex-end;gap:2px;height:22px;width:60px;vertical-align:middle}
+.md-spark .sb{flex:1;border-radius:1px;min-height:2px;min-width:3px}
+.md-spark .sb.hi{background:var(--moss)}
+.md-spark .sb.md{background:var(--amber)}
+.md-spark .sb.lo{background:var(--red)}
+.md-actions{white-space:nowrap;text-align:right}
+.md-actions button{font-size:.7rem;font-weight:700;padding:5px 10px;border-radius:4px;border:1px solid var(--border);background:#fff;color:var(--wood-light);cursor:pointer;font-family:inherit;margin-left:4px;transition:all .15s}
+.md-actions button:hover{border-color:var(--moss);color:var(--moss-dark)}
+.md-actions button.primary{background:var(--moss);color:#fff;border-color:var(--moss)}
+.md-actions button.primary:hover{background:var(--moss-dark);color:#fff}
+.md-when{font-size:.7rem;color:var(--muted);white-space:nowrap}
+.md-issues-cell{text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+.md-issues-cell.has{color:var(--amber)}
+.md-issues-cell.high{color:var(--red)}
+
+/* Expanded version row */
+.md-versions-row td{background:var(--sand-pale)!important;padding:0!important;border-bottom:2px solid var(--border)!important}
+.md-versions-inner{padding:10px 12px 12px 38px}
+.md-versions-inner h5{font-size:.62rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.md-vlist{display:flex;flex-direction:column;gap:3px}
+.md-vlist .md-vrow{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:10px;align-items:center;padding:6px 10px;background:#fff;border:1px solid var(--border);border-radius:4px;font-size:.72rem}
+.md-vlist .md-vrow .v{font-weight:800;color:var(--moss-dark);font-size:.66rem}
+.md-vlist .md-vrow .when{color:var(--muted)}
+.md-vlist .md-vrow .iss{font-size:.66rem;color:var(--muted)}
+.md-vlist .md-vrow .sc{font-weight:800;font-variant-numeric:tabular-nums}
+.md-vlist .md-vrow .sc.hi{color:var(--moss)}
+.md-vlist .md-vrow .sc.md{color:var(--amber)}
+.md-vlist .md-vrow .sc.lo{color:var(--red)}
+.md-vlist .md-vrow .open-link{background:none;border:none;color:var(--moss-dark);font-weight:700;cursor:pointer;font-family:inherit;font-size:.68rem;padding:0}
+.md-vlist .md-vrow .open-link:hover{text-decoration:underline}
+
+/* Project register */
+.project-list{display:flex;flex-direction:column;gap:12px;margin-top:18px}
+.project-card{background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .15s}
+.project-card:hover{border-color:var(--moss-light)}
+.project-head{display:grid;grid-template-columns:auto 1fr auto auto auto auto;align-items:center;gap:18px;padding:14px 18px;cursor:pointer;user-select:none}
+.project-head:hover{background:var(--sand-pale)}
+.pc-toggle{font-size:.8rem;color:var(--muted);transition:transform .2s;width:14px;text-align:center}
+.project-card.open .pc-toggle{transform:rotate(90deg)}
+.pc-num{font-size:.84rem;font-weight:800;color:var(--moss-dark);letter-spacing:.3px;font-variant-numeric:tabular-nums}
+.pc-name{font-size:.78rem;font-weight:600;color:var(--wood);margin-top:2px}
+.pc-meta{display:flex;flex-direction:column;align-items:flex-end;min-width:70px}
+.pc-meta .pm-val{font-size:1rem;font-weight:800;color:var(--wood);font-variant-numeric:tabular-nums}
+.pc-meta .pm-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700}
+.pc-meta.score .pm-val.hi{color:var(--moss)}
+.pc-meta.score .pm-val.md{color:var(--amber)}
+.pc-meta.score .pm-val.lo{color:var(--red)}
+.project-body{display:none;background:var(--sand-pale);border-top:1px solid var(--border);padding:12px 18px}
+.project-card.open .project-body{display:block}
+.proj-reviews{width:100%;border-collapse:collapse;font-size:.75rem}
+.proj-reviews th{text-align:left;padding:6px 8px;font-size:.6rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+.proj-reviews td{padding:8px;border-bottom:1px solid var(--border);color:var(--wood-light)}
+.proj-reviews tr:last-child td{border-bottom:none}
+.proj-reviews .score-cell{font-weight:800;font-variant-numeric:tabular-nums;text-align:right}
+.proj-reviews .score-cell.hi{color:var(--moss)}
+.proj-reviews .score-cell.md{color:var(--amber)}
+.proj-reviews .score-cell.lo{color:var(--red)}
+.proj-reviews .view-btn{background:none;border:none;color:var(--moss-dark);font-weight:700;cursor:pointer;font-family:inherit;font-size:.72rem;padding:0}
+.proj-reviews .view-btn:hover{text-decoration:underline}
+.projects-empty{text-align:center;padding:50px 20px;color:var(--muted)}
+.projects-empty .peico{font-size:2.4rem;opacity:.4;margin-bottom:8px}
+.projects-empty .ptitle{font-size:.88rem;font-weight:700;color:var(--wood-light);margin-bottom:4px}
+.projects-empty .pdesc{font-size:.74rem;max-width:360px;margin:0 auto}
+
+/* Utility */
+.row-between{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.action-btns{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <img src="logo.png" alt="McKenzie & Co" class="logo"/>
+  <div class="logo-divider"></div>
+  <div class="app-name">Document QA Review</div>
+  <div class="topbar-meta">
+    <span>Internal QA Platform</span>
+    <span class="who" id="topbarUser"><span class="a">JM</span><span>Jimmy McKenzie</span></span>
+  </div>
+</div>
+
+<header>
+  <div>
+    <h1>Submit, score &amp; track document quality</h1>
+    <p>AI-powered QA reviews for resource consent reports, client deliverables and technical documents</p>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchView('new')">New Review</button>
+    <button class="tab" onclick="switchView('mydocs')">My Documents</button>
+    <button class="tab" onclick="switchView('projects')">Project Register</button>
+    <button class="tab" onclick="switchView('reports')">Reports &amp; Analytics</button>
+    <button class="tab" onclick="switchView('admin')" title="Admin settings">🔒 Admin</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ========== NEW REVIEW VIEW ========== -->
+  <div id="view-new" class="view active">
+    <div class="new-review">
+
+      <!-- LEFT: Form -->
+      <aside class="card">
+        <h2>Submit for Review</h2>
+        <p class="sub">Upload a document, set the purpose, pick checks, submit.</p>
+
+        <div class="mode-toggle three">
+          <button class="mode-btn active" id="modeNew" onclick="setMode('new')">📄 Single doc</button>
+          <button class="mode-btn" id="modeVersion" onclick="setMode('version')">🔄 New version</button>
+          <button class="mode-btn" id="modePackage" onclick="setMode('package')">📁 Full package</button>
+        </div>
+
+        <div id="docPicker" class="doc-picker" style="display:none"></div>
+        <div id="parentChip" style="display:none"></div>
+
+        <div class="panel-section" id="uploadSection">
+          <h3 id="uploadHeading">1. Upload Document</h3>
+
+          <!-- Single-file mode -->
+          <div id="singleFileMode">
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+              <div class="ico">📄</div>
+              <div class="title">Drop file here or click to browse</div>
+              <div class="desc">PDF, Word, plain text — up to 25MB</div>
+            </div>
+            <input type="file" id="fileInput" style="display:none" accept=".pdf,.doc,.docx,.txt,.rtf,.odt" onchange="handleFileSelect(event)"/>
+            <div id="fileList" class="file-list"></div>
+          </div>
+
+          <!-- Package (folder) mode -->
+          <div id="packageMode" style="display:none">
+            <div class="folder-zone" onclick="document.getElementById('folderInput').click()">
+              <div class="ico">📁</div>
+              <div class="title">Select project folder</div>
+              <div class="desc">All compatible files inside will be reviewed as one package</div>
+            </div>
+            <input type="file" id="folderInput" style="display:none" webkitdirectory directory multiple onchange="handleFolderSelect(event)"/>
+            <div id="folderResult"></div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <h3>2. Project</h3>
+          <div class="field-row">
+            <div class="field">
+              <label>Project number</label>
+              <input type="text" id="projectNumber" placeholder="e.g. P24-0182" autocomplete="off"/>
+              <div class="hint" id="projHint" style="display:none">✨ Auto-detected from filename</div>
+            </div>
+            <div class="field">
+              <label>Project name <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+              <input type="text" id="projectName" placeholder="e.g. Riverside subdivision" autocomplete="off"/>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <h3>3. Document Purpose</h3>
+          <div class="field-row">
+            <div class="field">
+              <label>Reviewer</label>
+              <input type="text" id="reviewer" placeholder="Name of person submitting" autocomplete="off"/>
+              <div class="hint">Who is logging this QA review?</div>
+            </div>
+            <div class="field">
+              <label>Date</label>
+              <input type="text" id="reviewDate" disabled/>
+            </div>
+          </div>
+          <div class="field">
+            <label>What is this document for?</label>
+            <select id="purpose">
+              <option value="">— Select purpose —</option>
+              <option>Resource consent application</option>
+              <option>Assessment of Environmental Effects (AEE)</option>
+              <option>Engineering design report</option>
+              <option>Stormwater management plan</option>
+              <option>Feasibility study</option>
+              <option>Client proposal / fee letter</option>
+              <option>Technical memo</option>
+              <option>Peer review comments</option>
+              <option>Internal report</option>
+              <option>Marketing / external publication</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Additional context <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+            <textarea id="context" placeholder="e.g. Council: Auckland Council. Audience: planner & peer reviewer. Any specific concerns?"></textarea>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <h3>4. QA Checks to Run</h3>
+          <div class="check-grid" id="checkGrid"></div>
+        </div>
+
+        <button class="primary" id="submitBtn" onclick="submitReview()">Submit for AI QA Review</button>
+      </aside>
+
+      <!-- RIGHT: Results -->
+      <section class="card" style="min-height:500px">
+        <div id="resultsPanel">
+          <div class="results-empty">
+            <div class="eico">🔍</div>
+            <div class="etitle">No review yet</div>
+            <div class="edesc">Submit a document on the left to see quality score, breakdown by check type, and a prioritised list of issues to address.</div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- ========== ADMIN VIEW ========== -->
+  <div id="view-admin" class="view">
+    <div class="admin-wrap">
+      <div id="adminGate"></div>
+      <div id="adminPanel" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- ========== MY DOCUMENTS VIEW ========== -->
+  <div id="view-mydocs" class="view">
+    <div class="row-between">
+      <div>
+        <h2 style="font-size:1rem;font-weight:800;color:var(--wood);letter-spacing:-0.01em">My Documents</h2>
+        <p style="font-size:.78rem;color:var(--muted);margin-top:2px" id="mydocsSub">Documents you've submitted for QA. Upload the next version from any card.</p>
+      </div>
+      <input type="text" id="mydocsSearch" placeholder="Search document, project, purpose…" oninput="renderMyDocs()" style="padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-size:.78rem;font-family:inherit;min-width:260px;background:#fff"/>
+    </div>
+    <div id="mydocsList"></div>
+  </div>
+
+  <!-- ========== PROJECT REGISTER VIEW ========== -->
+  <div id="view-projects" class="view">
+    <div class="row-between">
+      <div>
+        <h2 style="font-size:1rem;font-weight:800;color:var(--wood);letter-spacing:-0.01em">Project QA Register</h2>
+        <p style="font-size:.78rem;color:var(--muted);margin-top:2px">Every QA review logged against its project. Click a project to see its full QA history.</p>
+      </div>
+      <input type="text" id="projectSearch" placeholder="Search project number or name…" oninput="renderProjectRegister()" style="padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-size:.78rem;font-family:inherit;min-width:260px;background:#fff"/>
+    </div>
+    <div id="projectList" class="project-list"></div>
+  </div>
+
+  <!-- ========== REPORTS VIEW ========== -->
+  <div id="view-reports" class="view">
+
+    <div class="stat-grid" id="statGrid"></div>
+
+    <div class="two-col">
+      <div class="card">
+        <h2>Quality Score Trend</h2>
+        <p class="sub">Average quality score over recent reviews</p>
+        <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Reviews by Purpose</h2>
+        <p class="sub">Where QA reviews are being used</p>
+        <div class="chart-wrap"><canvas id="purposeChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <h2>Most Common Issues</h2>
+        <p class="sub">Top issue categories across all reviews — focus training here</p>
+        <div id="commonIssues" class="common-issues-list"></div>
+      </div>
+      <div class="card">
+        <h2>Check Type Usage</h2>
+        <p class="sub">Which QA checks get run most often</p>
+        <div class="chart-wrap"><canvas id="checksChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row-between">
+        <div>
+          <h2>Recent Reviews</h2>
+          <p class="sub">Latest QA reviews — click any row to reopen results</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div class="filter-pills" id="recentDateFilter"></div>
+          <button class="secondary" onclick="clearAllReviews()">Clear all reviews</button>
+        </div>
+      </div>
+      <table class="recent-table">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Document</th>
+            <th>Purpose</th>
+            <th>Reviewer</th>
+            <th>Date</th>
+            <th>Checks</th>
+            <th style="text-align:right">Score</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="recentBody"></tbody>
+      </table>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+/* ================== DATA ================== */
+const QA_CHECKS = [
+  {id:'grammar', title:'Grammar & Spelling', desc:'Typos, subject-verb agreement, punctuation'},
+  {id:'clarity', title:'Clarity & Readability', desc:'Plain English, sentence length, jargon'},
+  {id:'technical', title:'Technical Accuracy', desc:'Units, calculations, standards references'},
+  {id:'brand', title:'Brand & Style', desc:'McKenzie & Co voice, tone, formatting'},
+  {id:'consistency', title:'Internal Consistency', desc:'Terminology, figures match text, cross-refs'},
+  {id:'completeness', title:'Completeness', desc:'Required sections, appendices, sign-offs'},
+  {id:'citations', title:'Citations & References', desc:'Correct format, all sources listed'},
+  {id:'compliance', title:'Regulatory Compliance', desc:'NES, RMA, district plan alignment'},
+  {id:'audience', title:'Audience & Tone', desc:'Appropriate for planner / client / public'},
+  {id:'structure', title:'Structure & Flow', desc:'Logical ordering, headings, summary at top'}
+];
+
+/* Pool of realistic issue templates — sampled per check type */
+const ISSUE_POOL = {
+  grammar: [
+    {t:'Subject-verb disagreement', s:'low', d:'Plural subject paired with singular verb.', q:'"The list of requirements are attached."', f:'Change to "is attached" — subject is "list".'},
+    {t:'Comma splice', s:'low', d:'Two independent clauses joined with only a comma.', q:'"The site is flat, it drains west."', f:'Use a semicolon, em-dash, or split into two sentences.'},
+    {t:'Inconsistent hyphenation', s:'low', d:'Compound modifier hyphenated in some places, not others.', q:'"long term effects" vs "long-term impact"', f:'Standardise on "long-term" as a modifier throughout.'},
+    {t:'Spelling error', s:'low', d:'Likely typo detected.', q:'"stormwater attenuaton pond"', f:'"attenuation" — missing "i".'},
+    {t:'Incorrect apostrophe', s:'low', d:'Possessive vs plural confusion.', q:'"the Council\'s have advised"', f:'"Councils have advised" (plural, no apostrophe).'}
+  ],
+  clarity: [
+    {t:'Overly long sentence', s:'medium', d:'Sentence exceeds 40 words — splits better into two.', q:'First paragraph, §3.2.', f:'Break after "…and subsequently reviewed".'},
+    {t:'Jargon without definition', s:'medium', d:'Technical term used without explanation for lay audience.', q:'"ICMP", "MHWS" used in §2 without gloss.', f:'Define on first use — "Integrated Catchment Management Plan (ICMP)".'},
+    {t:'Passive voice overuse', s:'low', d:'Heavy passive constructions reduce readability.', q:'"It was determined by the engineer that…"', f:'"The engineer determined that…"'},
+    {t:'Vague quantifier', s:'medium', d:'Uses "significant" / "substantial" without numbers.', q:'"a significant reduction in runoff"', f:'Quantify — "a 45% reduction in peak flow".'}
+  ],
+  technical: [
+    {t:'Unit mismatch', s:'high', d:'Value in L/s cited elsewhere as m³/s without conversion.', q:'§4.1 uses 120 L/s; §5.3 quotes 120 m³/s.', f:'Recalculate — 120 L/s = 0.12 m³/s.'},
+    {t:'Calculation discrepancy', s:'high', d:'Total in summary does not match sum of line items.', q:'Table 3 sums to $2.48M; narrative says $2.52M.', f:'Reconcile totals — check rounding and GST treatment.'},
+    {t:'Outdated standard referenced', s:'medium', d:'Cites superseded version of standard.', q:'"AS/NZS 3500.3:2003"', f:'Current version is AS/NZS 3500.3:2021.'},
+    {t:'Missing assumption', s:'medium', d:'Key input stated without source or basis.', q:'"Runoff coefficient of 0.85 assumed."', f:'Cite source — TP108 or equivalent justification.'}
+  ],
+  brand: [
+    {t:'Logo placement', s:'low', d:'Logo not in standard position on cover.', q:'Cover page.', f:'Top-right, 32mm from top per brand guide.'},
+    {t:'Non-brand font used', s:'low', d:'Body text uses Calibri, not Inter.', q:'Throughout.', f:'Replace with Inter per McK brand standard.'},
+    {t:'Colour off-brand', s:'low', d:'Accent bars use bright green, not McK moss.', q:'Header bars.', f:'Use moss (#48773c).'},
+    {t:'Inconsistent company name', s:'low', d:'"McKenzie and Co", "McKenzie & Co", "McK&Co" all used.', q:'§1, §4, §7.', f:'Use "McKenzie & Co" consistently.'}
+  ],
+  consistency: [
+    {t:'Figure & text mismatch', s:'high', d:'Figure 4 shows 12 lots; narrative says 14.', q:'§3 narrative vs Fig 4.', f:'Update narrative or regenerate figure.'},
+    {t:'Cross-reference broken', s:'medium', d:'Reference to "§6.2" — no such section exists.', q:'§4, last paragraph.', f:'Likely intended §6.1 — verify.'},
+    {t:'Terminology drift', s:'low', d:'"Attenuation tank" and "detention tank" used interchangeably.', q:'Throughout.', f:'Pick one term and use throughout — they mean different things.'},
+    {t:'Inconsistent numbering', s:'low', d:'Section jumps from 3.2 to 3.4.', q:'Section 3.', f:'Renumber or confirm 3.3 was intentionally omitted.'}
+  ],
+  completeness: [
+    {t:'Missing executive summary', s:'medium', d:'No summary at document front.', q:'Front matter.', f:'Add 1-page summary — findings, recommendations, cost.'},
+    {t:'No author / reviewer sign-off', s:'medium', d:'Document version control table incomplete.', q:'Inside cover.', f:'Add Rev table with author, checker, approver, date.'},
+    {t:'Appendix referenced but not attached', s:'high', d:'"See Appendix C" — no Appendix C present.', q:'§5.', f:'Attach, or remove the reference.'},
+    {t:'No limitations statement', s:'medium', d:'Standard limitations clause missing.', q:'End matter.', f:'Add per McK template — scope, reliance, third-party use.'}
+  ],
+  citations: [
+    {t:'Citation without full reference', s:'medium', d:'"(Smith, 2019)" in text but not in reference list.', q:'§2.4.', f:'Add full reference or remove citation.'},
+    {t:'Inconsistent citation style', s:'low', d:'Mix of author-date and numbered citations.', q:'§3 & §5.', f:'Standardise on author-date (McK default).'},
+    {t:'Missing DOI/URL', s:'low', d:'Journal article cited without DOI.', q:'Reference 12.', f:'Add DOI or publisher URL.'},
+    {t:'Broken hyperlink', s:'low', d:'External link returns 404.', q:'Reference 7.', f:'Find current URL or archived version.'}
+  ],
+  compliance: [
+    {t:'RMA section reference incorrect', s:'high', d:'Cites "s95A(1)" for notification test — correct is s95A.', q:'§6.1.', f:'Remove "(1)" — reference section itself.'},
+    {t:'District Plan rule superseded', s:'medium', d:'Rule D4.2 cited — operative plan now uses D4.4.', q:'§4.2.', f:'Check current operative plan version.'},
+    {t:'NES not addressed', s:'medium', d:'Contaminated land NES-CS applies but not discussed.', q:'Missing section.', f:'Add NES-CS assessment or explain non-applicability.'}
+  ],
+  audience: [
+    {t:'Technical depth mismatch', s:'medium', d:'Highly technical hydraulic detail in a client-facing summary.', q:'§2 (executive summary).', f:'Move detail to appendix; summary should be plain English.'},
+    {t:'Tone too informal', s:'low', d:'Conversational tone unsuitable for statutory document.', q:'"We reckon this works fine."', f:'"The proposed solution is considered effective."'},
+    {t:'Acronym overload', s:'medium', d:'8 acronyms in first paragraph — reader will lose track.', q:'§1.1.', f:'Spell out on first use; limit to ≤3 per paragraph.'}
+  ],
+  structure: [
+    {t:'No summary at top', s:'medium', d:'Key findings buried on page 14.', q:'Overall.', f:'Add TL;DR or executive summary up front.'},
+    {t:'Heading hierarchy inconsistent', s:'low', d:'Some sections use H2 → H4 with no H3.', q:'§3, §5.', f:'Maintain H1→H2→H3 sequence.'},
+    {t:'Recommendations scattered', s:'medium', d:'Recommendations spread across 4 sections — hard to action.', q:'Various.', f:'Consolidate into a single recommendations section.'}
+  ]
+};
+
+const PURPOSE_TONE = {
+  'Resource consent application':{bias:-3,focus:['compliance','completeness','technical']},
+  'Assessment of Environmental Effects (AEE)':{bias:-2,focus:['compliance','completeness','citations']},
+  'Engineering design report':{bias:0,focus:['technical','consistency','completeness']},
+  'Stormwater management plan':{bias:-1,focus:['technical','compliance','consistency']},
+  'Feasibility study':{bias:2,focus:['technical','clarity','audience']},
+  'Client proposal / fee letter':{bias:4,focus:['brand','audience','clarity']},
+  'Technical memo':{bias:3,focus:['clarity','technical']},
+  'Peer review comments':{bias:5,focus:['clarity','consistency']},
+  'Internal report':{bias:3,focus:['clarity','structure']},
+  'Marketing / external publication':{bias:1,focus:['brand','audience','grammar']},
+  'Other':{bias:0,focus:[]}
+};
+
+const CURRENT_USER = 'Jimmy McKenzie';
+
+/* ================== STATE ================== */
+let uploadedFile = null;
+let reviews = loadReviews();
+let issueFilter = 'all';
+let activeReview = null;
+let formMode = 'new';          // 'new' | 'version' | 'package'
+let parentDocId = null;        // when mode === 'version'
+let folderFiles = [];          // array of {file, path, included, category, sizeOk}
+let folderRoot = '';           // top-level folder name
+
+function loadReviews(){
+  try{return JSON.parse(localStorage.getItem('mck-qa-reviews')||'[]');}catch{return [];}
+}
+function saveReviews(){
+  localStorage.setItem('mck-qa-reviews',JSON.stringify(reviews));
+}
+
+/* ================== UI: TABS ================== */
+/* ================== ADMIN CONFIG ================== */
+const DEFAULT_SYSTEM_PROMPT = `You are an expert technical document reviewer for McKenzie & Co — a New Zealand engineering and planning consultancy.
+
+Your job is to review the provided document and produce a structured QA report. Be specific, cite locations, suggest fixes.
+
+DOCUMENT METADATA
+- File: {filename}
+- Purpose: {purpose}
+- Project: {projectNumber} {projectName}
+- Author context: {context}
+
+REQUESTED CHECKS
+{checks}
+
+OUTPUT REQUIREMENTS
+Return a JSON object with:
+  - overall: integer 0-100 representing submission readiness
+  - breakdown: object mapping each check id to a 0-100 score
+  - issues: array of { category, title, severity (low|medium|high), description, quote, fix }
+
+GUIDELINES
+- Apply NZ English spelling and McKenzie & Co house style
+- Reference the relevant standards (RMA, NES, AS/NZS, district plans) where applicable
+- Be constructive: every issue must include a concrete suggested fix
+- Prioritise issues that would block submission to council or a client over stylistic nits
+- Calibrate the overall score: 90+ = ready to submit; 75-89 = minor revisions; 60-74 = revise before submitting; <60 = significant rework`;
+
+const DEFAULT_CHECK_PROMPTS = {
+  grammar:'Focus on NZ English. Flag spelling, subject-verb agreement, punctuation, hyphenation, apostrophes.',
+  clarity:'Flag sentences over 35 words, undefined jargon, vague quantifiers (significant/substantial without numbers), passive voice overuse.',
+  technical:'Verify units, calculations, cross-totals, currency of standards cited (AS/NZS, NZS).',
+  brand:'Apply the McK brand standard — moss/water/wood palette, Inter font, "McKenzie & Co" naming.',
+  consistency:'Cross-check figures vs narrative, cross-references, terminology drift, numbering.',
+  completeness:'Required sections per purpose: exec summary, version control, sign-off, limitations, appendices.',
+  citations:'NZ author-date style, full reference list, working hyperlinks/DOIs.',
+  compliance:'RMA, NES, district plan rule references — current and correctly cited.',
+  audience:'Tone matched to purpose — formal for statutory, plain for client, technical for peer.',
+  structure:'Logical heading hierarchy, summary up front, recommendations consolidated.'
+};
+
+const DEFAULT_CONFIG = {
+  apiKey:'',
+  model:'claude-opus-4-7',
+  maxTokens:4096,
+  temperature:0.2,
+  systemPrompt:DEFAULT_SYSTEM_PROMPT,
+  checkPrompts:{...DEFAULT_CHECK_PROMPTS},
+  adminPasswordHash:''
+};
+
+function loadConfig(){
+  try{
+    const saved = JSON.parse(localStorage.getItem('mck-qa-config')||'{}');
+    return {...DEFAULT_CONFIG, ...saved, checkPrompts:{...DEFAULT_CHECK_PROMPTS, ...(saved.checkPrompts||{})}};
+  }catch{return {...DEFAULT_CONFIG};}
+}
+function saveConfig(c){localStorage.setItem('mck-qa-config',JSON.stringify(c));}
+let CONFIG = loadConfig();
+
+function isLive(){return CONFIG.apiKey && CONFIG.apiKey.startsWith('sk-ant-');}
+
+/* Tiny non-cryptographic hash — prototype only. NOT real auth. */
+function hashPin(s){
+  let h = 5381;
+  for(let i=0;i<s.length;i++)h = ((h<<5)+h) + s.charCodeAt(i);
+  return (h>>>0).toString(36);
+}
+
+function isAdminUnlocked(){
+  if(!CONFIG.adminPasswordHash)return true; // no password set = open
+  return sessionStorage.getItem('mck-qa-admin-unlocked')==='1';
+}
+
+function switchView(v, silent){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  if(!silent && typeof event !== 'undefined' && event && event.target){
+    event.target.classList.add('active');
+  } else {
+    // Fall back to matching by view id — used for programmatic switches
+    const map = {new:0, mydocs:1, projects:2, reports:3};
+    const idx = map[v] ?? 0;
+    document.querySelectorAll('.tab')[idx]?.classList.add('active');
+  }
+  document.querySelectorAll('.view').forEach(vw=>vw.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  if(v==='reports')renderReports();
+  if(v==='projects')renderProjectRegister();
+  if(v==='mydocs')renderMyDocs();
+  if(v==='admin')renderAdmin();
+}
+
+/* ================== DOCUMENT GROUPING ================== */
+/* A "document" is a series of QA reviews sharing a docId.
+   First upload creates the docId; versions inherit it. */
+
+function cleanDocTitle(filename){
+  // strip extension and common version markers: v1, _v2, -rev A, (final), etc.
+  return filename
+    .replace(/\.[^.]+$/,'')
+    .replace(/[\s_\-]*(v|ver|version|rev|revision|draft)[\s_\-]*[0-9a-z]+/gi,'')
+    .replace(/[\s_\-]*\((final|draft|issued|for review|approved|reviewed)\)/gi,'')
+    .replace(/[\s_\-]+(final|draft|issued|approved)\b/gi,'')
+    .replace(/[_]+/g,' ')
+    .replace(/\s+/g,' ')
+    .trim() || filename.replace(/\.[^.]+$/,'');
+}
+
+function getDocuments(owner){
+  /* Groups reviews into documents. Returns array sorted by most-recent activity. */
+  const groups = {};
+  reviews.forEach(r=>{
+    if(owner && r.reviewer !== owner)return;
+    const id = r.docId || r.id;
+    if(!groups[id]){
+      groups[id] = {
+        docId: id,
+        title: cleanDocTitle(r.fileName),
+        projectNumber: r.projectNumber || null,
+        projectName: r.projectName || null,
+        purpose: r.purpose,
+        owner: r.reviewer,
+        versions: []
+      };
+    }
+    groups[id].versions.push(r);
+    // prefer most-recent metadata
+    if(r.projectNumber)groups[id].projectNumber = r.projectNumber;
+    if(r.projectName)groups[id].projectName = r.projectName;
+  });
+  return Object.values(groups).map(d=>{
+    d.versions.sort((a,b)=>(a.version||1)-(b.version||1));
+    d.latest = d.versions[d.versions.length-1];
+    d.latestScore = adjustedScore(d.latest);
+    d.latestDate = d.latest.date;
+    d.latestVersion = d.latest.version || 1;
+    const first = d.versions[0];
+    d.trend = d.versions.length<2 ? 0 : d.latestScore - adjustedScore(first);
+    return d;
+  }).sort((a,b)=>new Date(b.latestDate)-new Date(a.latestDate));
+}
+
+/* ================== UI: FORM ================== */
+function setMode(mode){
+  formMode = mode;
+  document.getElementById('modeNew').classList.toggle('active', mode==='new');
+  document.getElementById('modeVersion').classList.toggle('active', mode==='version');
+  document.getElementById('modePackage').classList.toggle('active', mode==='package');
+  const picker = document.getElementById('docPicker');
+  const chip = document.getElementById('parentChip');
+  const single = document.getElementById('singleFileMode');
+  const pkg = document.getElementById('packageMode');
+  const heading = document.getElementById('uploadHeading');
+
+  // Show/hide upload UI based on mode
+  if(mode==='package'){
+    single.style.display = 'none';
+    pkg.style.display = 'block';
+    heading.textContent = '1. Select Project Folder';
+  } else {
+    single.style.display = 'block';
+    pkg.style.display = 'none';
+    heading.textContent = '1. Upload Document';
+  }
+
+  // Doc picker is only for "version" mode
+  if(mode==='version'){
+    if(parentDocId)renderParentChip();
+    else renderDocPicker();
+  } else {
+    parentDocId = null;
+    picker.style.display = 'none';
+    chip.style.display = 'none';
+  }
+
+  // Submit button label
+  const submitBtn = document.getElementById('submitBtn');
+  if(submitBtn){
+    submitBtn.textContent = mode==='package' ? 'Submit Package for AI QA Review' : 'Submit for AI QA Review';
+  }
+}
+
+function renderDocPicker(){
+  const picker = document.getElementById('docPicker');
+  document.getElementById('parentChip').style.display = 'none';
+  picker.style.display = 'block';
+  const docs = getDocuments(CURRENT_USER);
+  if(!docs.length){
+    picker.innerHTML = `<div class="dp-empty">You don't have any documents yet. Switch to "New document" to submit your first QA review — subsequent versions will appear here.</div>`;
+    return;
+  }
+  picker.innerHTML = docs.map(d=>{
+    const scls = d.latestScore>=85?'hi':d.latestScore>=70?'md':'lo';
+    return `<div class="doc-pick-item" onclick="selectParentDoc('${d.docId}')">
+      <span class="dpi-ico">📘</span>
+      <div style="min-width:0">
+        <div class="dpi-title">${escapeHtml(d.title)}</div>
+        <div class="dpi-meta">${d.projectNumber?escapeHtml(d.projectNumber)+' · ':''}${escapeHtml(d.purpose)} · ${d.versions.length} version${d.versions.length>1?'s':''}</div>
+      </div>
+      <span class="dpi-v">v${d.latestVersion}</span>
+      <span class="dpi-score ${scls}">${d.latestScore}</span>
+    </div>`;
+  }).join('');
+}
+
+function selectParentDoc(docId){
+  parentDocId = docId;
+  const doc = getDocuments().find(d=>d.docId===docId);
+  if(!doc)return;
+  // Pre-fill project number / name from parent
+  if(doc.projectNumber)document.getElementById('projectNumber').value = doc.projectNumber;
+  if(doc.projectName)document.getElementById('projectName').value = doc.projectName;
+  // Pre-fill purpose
+  const purposeSel = document.getElementById('purpose');
+  Array.from(purposeSel.options).forEach(o=>{if(o.value===doc.purpose)o.selected=true;});
+  renderParentChip();
+}
+
+function renderParentChip(){
+  const chip = document.getElementById('parentChip');
+  const doc = getDocuments().find(d=>d.docId===parentDocId);
+  if(!doc){parentDocId=null;return renderDocPicker();}
+  document.getElementById('docPicker').style.display = 'none';
+  chip.style.display = 'block';
+  const nextV = doc.latestVersion + 1;
+  chip.innerHTML = `<div class="parent-chip">
+    <span class="pchip-ico">🔄</span>
+    <div class="pchip-body">
+      <div class="pchip-lbl">Uploading as v${nextV}</div>
+      <div class="pchip-title">${escapeHtml(doc.title)}</div>
+      <div class="pchip-meta">${doc.projectNumber?escapeHtml(doc.projectNumber)+' · ':''}currently v${doc.latestVersion} (score ${doc.latestScore})</div>
+    </div>
+    <button class="pchip-clear" onclick="clearParent()" title="Choose different document">×</button>
+  </div>`;
+}
+
+function clearParent(){
+  parentDocId = null;
+  renderDocPicker();
+}
+
+/* ================== FOLDER / PACKAGE PICKER ================== */
+function categoriseFile(name){
+  const lower = name.toLowerCase();
+  const ext = (lower.match(/\.([^.]+)$/)||[])[1] || '';
+  // Hidden / temp files
+  if(lower.startsWith('.') || lower.startsWith('~$') || lower.endsWith('.tmp') || lower.includes('thumbs.db') || lower.includes('.ds_store')){
+    return {cat:'skip', label:'Skip', reviewable:false};
+  }
+  if(['pdf','doc','docx','rtf','odt','txt'].includes(ext)){
+    if(lower.includes('drawing') || lower.includes('sketch') || lower.includes('plan') || /^[a-z]?[\-_]?\d{2,3}[\-_]?\d{2,3}/.test(lower)){
+      return {cat:'drawing', label:'Drawing', reviewable:true};
+    }
+    return {cat:'report', label:'Report', reviewable:true};
+  }
+  if(['xlsx','xls','xlsm','csv'].includes(ext))return {cat:'calc', label:'Calcs', reviewable:true};
+  if(['dwg','dxf','dgn'].includes(ext))return {cat:'drawing', label:'Drawing (CAD)', reviewable:true};
+  if(['jpg','jpeg','png','tiff','tif','gif','bmp','svg'].includes(ext))return {cat:'image', label:'Image', reviewable:false};
+  if(['msg','eml'].includes(ext))return {cat:'email', label:'Correspondence', reviewable:true};
+  return {cat:'other', label:ext.toUpperCase()||'File', reviewable:false};
+}
+
+function fileIcon(cat){
+  return {report:'📕',calc:'📊',drawing:'📐',image:'🖼️',email:'✉️',other:'📎',skip:'🚫'}[cat] || '📄';
+}
+
+function handleFolderSelect(e){
+  const files = Array.from(e.target.files);
+  if(!files.length)return;
+
+  // Determine root folder name
+  const firstPath = files[0].webkitRelativePath || files[0].name;
+  folderRoot = firstPath.split('/')[0] || 'Selected folder';
+
+  folderFiles = files.map(f=>{
+    const path = f.webkitRelativePath || f.name;
+    const cat = categoriseFile(f.name);
+    const sizeOk = f.size <= 25 * 1024 * 1024;
+    return {
+      file: f,
+      path,
+      name: f.name,
+      size: f.size,
+      category: cat.cat,
+      categoryLabel: cat.label,
+      reviewable: cat.reviewable && sizeOk,
+      sizeOk,
+      included: cat.reviewable && sizeOk    // default: include reviewable files
+    };
+  }).sort((a,b)=>a.path.localeCompare(b.path));
+
+  // Auto-detect project number from folder name
+  const detected = extractProjectNumber(folderRoot);
+  if(detected && !document.getElementById('projectNumber').value.trim()){
+    document.getElementById('projectNumber').value = detected;
+    document.getElementById('projHint').style.display = 'block';
+  }
+  // Pre-fill project name if blank
+  if(!document.getElementById('projectName').value.trim()){
+    const cleaned = folderRoot.replace(extractProjectNumber(folderRoot)||'','').replace(/^[\s\-_]+|[\s\-_]+$/g,'').trim();
+    if(cleaned)document.getElementById('projectName').value = cleaned;
+  }
+
+  renderFolderResult();
+}
+
+function renderFolderResult(){
+  const el = document.getElementById('folderResult');
+  if(!folderFiles.length){el.innerHTML = '';return;}
+  const incCount = folderFiles.filter(f=>f.included).length;
+  const totalSize = folderFiles.filter(f=>f.included).reduce((a,f)=>a+f.size,0);
+  const reviewableCount = folderFiles.filter(f=>f.reviewable).length;
+  const skippedCount = folderFiles.length - reviewableCount;
+
+  el.innerHTML = `
+    <div class="pkg-summary">
+      <div>
+        <div class="pkg-name">📁 ${escapeHtml(folderRoot)}</div>
+        <div class="pkg-meta">${folderFiles.length} files scanned · ${reviewableCount} reviewable · ${skippedCount} skipped (images, hidden, oversize)</div>
+      </div>
+      <button class="pkg-clear" onclick="clearFolder()">× Clear folder</button>
+    </div>
+    <div class="pkg-stats">
+      <span><strong>${incCount}</strong> selected for review</span>
+      <span><strong>${formatBytes(totalSize)}</strong> total</span>
+    </div>
+    <div class="file-tree">
+      <div class="file-tree-toolbar">
+        <span>${folderFiles.length} files</span>
+        <span><a onclick="setAllFolderIncluded(true)">Include all</a> · <a onclick="setAllFolderIncluded(false)">Exclude all</a></span>
+      </div>
+      ${folderFiles.map((f,i)=>{
+        const dirParts = f.path.split('/');
+        const fname = dirParts.pop();
+        const dir = dirParts.length>1 ? dirParts.slice(1).join('/')+'/' : '';
+        return `<div class="ftree-row ${f.included?'':'skipped'}">
+          <input type="checkbox" ${f.included?'checked':''} ${f.reviewable?'':'disabled'} onchange="toggleFolderFile(${i})"/>
+          <span class="fico">${fileIcon(f.category)}</span>
+          <span class="fpath" title="${escapeHtml(f.path)}">${dir?`<span class="dir">${escapeHtml(dir)}</span>`:''}${escapeHtml(fname)}</span>
+          <span class="fcat ${f.category}">${escapeHtml(f.categoryLabel)}</span>
+          <span class="fsize">${formatBytes(f.size)}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function toggleFolderFile(i){
+  const f = folderFiles[i];
+  if(!f.reviewable)return;
+  f.included = !f.included;
+  renderFolderResult();
+}
+
+function setAllFolderIncluded(val){
+  folderFiles.forEach(f=>{if(f.reviewable)f.included = val;});
+  renderFolderResult();
+}
+
+function clearFolder(){
+  folderFiles = [];
+  folderRoot = '';
+  document.getElementById('folderInput').value = '';
+  document.getElementById('folderResult').innerHTML = '';
+}
+
+
+function renderChecks(){
+  const grid = document.getElementById('checkGrid');
+  grid.innerHTML = QA_CHECKS.map(c=>`
+    <label class="check-item">
+      <input type="checkbox" value="${c.id}" ${['grammar','clarity','technical','consistency'].includes(c.id)?'checked':''}>
+      <div>
+        <div class="ci-title">${c.title}</div>
+        <div class="ci-desc">${c.desc}</div>
+      </div>
+    </label>`).join('');
+}
+
+function setupDropZone(){
+  const dz = document.getElementById('dropZone');
+  ['dragenter','dragover'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.add('drag');}));
+  ['dragleave','drop'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.remove('drag');}));
+  dz.addEventListener('drop',ev=>{
+    const f = ev.dataTransfer.files[0];
+    if(f)setFile(f);
+  });
+}
+
+function handleFileSelect(e){
+  const f = e.target.files[0];
+  if(f)setFile(f);
+}
+
+function setFile(f){
+  uploadedFile = {name:f.name, size:f.size, type:f.type};
+  renderFileList();
+  autoDetectProject(f.name);
+}
+
+/* Project number extraction — tries common McK / NZ engineering formats from filename.
+   Real version would parse PDF/DOCX content; here we sniff the filename. */
+const PROJECT_PATTERNS = [
+  /\b(P[-_ ]?\d{2,4}[-_]\d{3,5})\b/i,        // P24-0182, P-2024-001
+  /\b(PRJ[-_ ]?\d{3,6})\b/i,                  // PRJ-12345
+  /\b(M\d{2}[-_]\d{3,5})\b/i,                 // M24-0182
+  /\b(\d{2,4}[-_]\d{3,5})\b/,                 // 2024-001, 24-0182
+  /\bproject[-_ ]?(\d{3,6})\b/i,              // project_12345
+  /\bjob[-_ ]?(\d{3,6})\b/i                   // job-12345
+];
+
+function extractProjectNumber(filename){
+  const base = filename.replace(/\.[^.]+$/,'');
+  for(const re of PROJECT_PATTERNS){
+    const m = base.match(re);
+    if(m)return m[1].toUpperCase().replace(/[_ ]/g,'-');
+  }
+  return null;
+}
+
+function autoDetectProject(filename){
+  const numField = document.getElementById('projectNumber');
+  const hint = document.getElementById('projHint');
+  if(numField.value.trim())return; // don't overwrite manual entry
+  const detected = extractProjectNumber(filename);
+  if(detected){
+    numField.value = detected;
+    hint.style.display = 'block';
+    // try to backfill name if we've seen this project before
+    const prior = reviews.find(r=>r.projectNumber===detected && r.projectName);
+    if(prior)document.getElementById('projectName').value = prior.projectName;
+  } else {
+    hint.style.display = 'none';
+  }
+}
+
+function renderFileList(){
+  const el = document.getElementById('fileList');
+  if(!uploadedFile){el.innerHTML='';return;}
+  const ext = uploadedFile.name.split('.').pop().toLowerCase();
+  const icons = {pdf:'📕',doc:'📘',docx:'📘',txt:'📄',rtf:'📄',odt:'📘'};
+  const ico = icons[ext]||'📄';
+  el.innerHTML = `<div class="file-row">
+    <span class="fico">${ico}</span>
+    <span class="fname">${escapeHtml(uploadedFile.name)}</span>
+    <span class="fsize">${formatBytes(uploadedFile.size)}</span>
+    <button class="del" onclick="clearFile()" title="Remove">×</button>
+  </div>`;
+}
+
+function clearFile(){
+  uploadedFile = null;
+  document.getElementById('fileInput').value='';
+  renderFileList();
+}
+
+function formatBytes(b){
+  if(b<1024)return b+' B';
+  if(b<1024*1024)return (b/1024).toFixed(1)+' KB';
+  return (b/1024/1024).toFixed(1)+' MB';
+}
+
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+/* ================== SUBMIT + MOCK AI ================== */
+function submitReview(){
+  // Validate package mode separately
+  if(formMode==='package'){
+    return submitPackageReview();
+  }
+  if(!uploadedFile){alert('Upload a document first.');return;}
+  const projectNumber = document.getElementById('projectNumber').value.trim().toUpperCase();
+  if(!projectNumber){alert('Enter a project number — or upload a file with one in the name (e.g. P24-0182).');return;}
+  const projectName = document.getElementById('projectName').value.trim();
+  const reviewer = document.getElementById('reviewer').value.trim();
+  if(!reviewer){alert('Enter a reviewer name.');return;}
+  const purpose = document.getElementById('purpose').value;
+  if(!purpose){alert('Select a document purpose.');return;}
+  const checks = Array.from(document.querySelectorAll('#checkGrid input:checked')).map(i=>i.value);
+  if(!checks.length){alert('Select at least one QA check.');return;}
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+
+  // Resolve document identity / version
+  let docId, version;
+  if(formMode==='version' && parentDocId){
+    const doc = getDocuments().find(d=>d.docId===parentDocId);
+    docId = parentDocId;
+    version = (doc?.latestVersion || 1) + 1;
+  } else {
+    docId = null; // assigned after creation
+    version = 1;
+  }
+
+  runAIReview(uploadedFile, purpose, document.getElementById('context').value, checks, projectNumber, projectName, version, reviewer)
+    .then(review=>{
+      review.docId = docId || review.id;     // first version: docId = own id
+      review.version = version;
+      reviews.unshift(review);
+      saveReviews();
+      activeReview = review;
+      renderResults(review);
+      btn.disabled = false;
+    });
+}
+
+function submitPackageReview(){
+  const projectNumber = document.getElementById('projectNumber').value.trim().toUpperCase();
+  if(!projectNumber){alert('Enter a project number — or use a folder named with one (e.g. P24-0182_Riverside).');return;}
+  const projectName = document.getElementById('projectName').value.trim();
+  const reviewer = document.getElementById('reviewer').value.trim();
+  if(!reviewer){alert('Enter a reviewer name.');return;}
+  const purpose = document.getElementById('purpose').value;
+  if(!purpose){alert('Select a package purpose (applied to every doc).');return;}
+  const checks = Array.from(document.querySelectorAll('#checkGrid input:checked')).map(i=>i.value);
+  if(!checks.length){alert('Select at least one QA check.');return;}
+  const included = folderFiles.filter(f=>f.included);
+  if(!included.length){alert('Select at least one file to review.');return;}
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  const packageId = 'pkg_'+Date.now();
+  const packageName = folderRoot;
+  const context = document.getElementById('context').value;
+
+  runPackageReview({
+    files: included, packageId, packageName,
+    purpose, context, checks, projectNumber, projectName, reviewer
+  }).then(results=>{
+    results.forEach(r=>reviews.unshift(r));
+    saveReviews();
+    activeReview = null;
+    renderPackageResults(packageId);
+    btn.disabled = false;
+  });
+}
+
+function runPackageReview(opts){
+  const {files, packageId, packageName, purpose, context, checks, projectNumber, projectName, reviewer} = opts;
+  const panel = document.getElementById('resultsPanel');
+  panel.innerHTML = `
+    <div class="running-state">
+      <div class="spinner"></div>
+      <h3>Reviewing package "${escapeHtml(packageName)}" <span class="live-badge ${isLive()?'live':'mock'}">${isLive()?'● Live':'● Mock'}</span></h3>
+      <p>Running ${checks.length} check${checks.length>1?'s':''} across ${files.length} file${files.length>1?'s':''}</p>
+      <div class="pkg-progress-bar"><div class="pkg-progress-fill" id="pkgProgFill" style="width:0%"></div></div>
+      <div class="pkg-progress-meta"><span id="pkgProgLabel">Starting…</span><span id="pkgProgCount">0 / ${files.length}</span></div>
+    </div>`;
+
+  const fill = document.getElementById('pkgProgFill');
+  const lbl = document.getElementById('pkgProgLabel');
+  const cnt = document.getElementById('pkgProgCount');
+
+  return new Promise(resolve=>{
+    const results = [];
+    let i = 0;
+    const stepMs = Math.max(180, Math.min(450, Math.round(8000/files.length)));
+    const tick = ()=>{
+      if(i>=files.length){
+        fill.style.width = '100%';
+        lbl.textContent = 'Compiling package summary…';
+        setTimeout(()=>resolve(results),500);
+        return;
+      }
+      const f = files[i];
+      lbl.textContent = `Reviewing ${f.path}…`;
+      cnt.textContent = `${i+1} / ${files.length}`;
+      fill.style.width = ((i+1)/files.length*100)+'%';
+      const fakeFile = {name:f.name, size:f.size, type:f.file.type};
+      const review = generateReview(fakeFile, purpose, context, checks, projectNumber, projectName, 1, reviewer);
+      review.docId = review.id;
+      review.version = 1;
+      review.packageId = packageId;
+      review.packageName = packageName;
+      review.packagePath = f.path;
+      review.fileCategory = f.category;
+      results.push(review);
+      i++;
+      setTimeout(tick, stepMs);
+    };
+    setTimeout(tick, 300);
+  });
+}
+
+function getPackage(packageId){
+  const members = reviews.filter(r=>r.packageId===packageId)
+                         .sort((a,b)=>(a.packagePath||'').localeCompare(b.packagePath||''));
+  if(!members.length)return null;
+  const first = members[0];
+  const adjScores = members.map(m=>adjustedScore(m));
+  const avg = Math.round(adjScores.reduce((a,b)=>a+b,0)/members.length);
+  const min = Math.min(...adjScores);
+  const totalIssues = members.reduce((a,m)=>a+m.issues.filter(i=>i.status!=='false-flag').length,0);
+  const highIssues = members.reduce((a,m)=>a+m.issues.filter(i=>i.severity==='high'&&i.status!=='false-flag').length,0);
+  return {
+    packageId,
+    packageName: first.packageName,
+    projectNumber: first.projectNumber,
+    projectName: first.projectName,
+    purpose: first.purpose,
+    reviewer: first.reviewer,
+    date: first.date,
+    members,
+    avg, min, totalIssues, highIssues
+  };
+}
+
+function renderPackageResults(packageId){
+  const pkg = getPackage(packageId);
+  if(!pkg)return;
+  const panel = document.getElementById('resultsPanel');
+  const tier = scoreTier(pkg.avg);
+  const ring = scoreRing(pkg.avg, tier.color);
+  const allIssues = pkg.members.flatMap(m=>m.issues.filter(i=>i.status!=='false-flag'));
+  const issueByTitle = {};
+  allIssues.forEach(i=>{issueByTitle[i.title]=(issueByTitle[i.title]||0)+1});
+  const topIssues = Object.entries(issueByTitle).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  panel.innerHTML = `
+    <div class="score-header">
+      <div class="score-ring">
+        ${ring}
+        <div class="score-val"><div class="sv-num">${pkg.avg}</div><div class="sv-lbl">Pkg avg</div></div>
+      </div>
+      <div class="score-meta">
+        <div class="doc-name">📁 ${escapeHtml(pkg.packageName)}</div>
+        <div class="doc-purpose">${pkg.members.length} documents · ${escapeHtml(pkg.purpose)} · ${new Date(pkg.date).toLocaleString('en-NZ',{dateStyle:'medium',timeStyle:'short'})}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+          <span class="reviewer-chip">
+            <span class="ravatar">${escapeHtml(reviewerInitials(pkg.reviewer))}</span>
+            <span><div class="rname">${escapeHtml(pkg.reviewer)}</div><div class="rrole">Reviewer</div></span>
+          </span>
+          <span class="score-pill ${tier.cls}">${tier.label}</span>
+          ${pkg.projectNumber?`<span class="score-pill" style="background:var(--water-pale);color:#3a6a70;border:1px solid var(--water);cursor:pointer" onclick="openProjectFromResults('${escapeHtml(pkg.projectNumber)}')">📁 ${escapeHtml(pkg.projectNumber)}${pkg.projectName?' · '+escapeHtml(pkg.projectName):''}</span>`:''}
+        </div>
+      </div>
+    </div>
+
+    <div class="pkg-overview">
+      <div class="pko-head">
+        <div>
+          <div class="pko-title">Package Summary</div>
+          <div class="pko-sub">Aggregate of all reviewed documents — click any row to drill into a single file's review.</div>
+        </div>
+      </div>
+      <div class="pko-stats">
+        <div class="pko-stat"><div class="pkos-lbl">Documents</div><div class="pkos-val">${pkg.members.length}</div></div>
+        <div class="pko-stat"><div class="pkos-lbl">Avg score</div><div class="pkos-val">${pkg.avg}</div></div>
+        <div class="pko-stat"><div class="pkos-lbl">Lowest</div><div class="pkos-val">${pkg.min}</div></div>
+        <div class="pko-stat"><div class="pkos-lbl">Total issues</div><div class="pkos-val">${pkg.totalIssues}</div></div>
+        <div class="pko-stat"><div class="pkos-lbl">High severity</div><div class="pkos-val" style="color:${pkg.highIssues>0?'var(--red)':'var(--moss)'}">${pkg.highIssues}</div></div>
+      </div>
+    </div>
+
+    <h3 style="font-size:.78rem;font-weight:800;color:var(--wood-light);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Per-File Scores</h3>
+    <table class="pkg-files-tbl">
+      <thead>
+        <tr>
+          <th></th>
+          <th>File</th>
+          <th>Type</th>
+          <th style="text-align:center">Issues</th>
+          <th style="text-align:center">High</th>
+          <th style="text-align:right">Score</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${pkg.members.map(m=>{
+          const adj = adjustedScore(m);
+          const scls = adj>=85?'hi':adj>=70?'md':'lo';
+          const live = m.issues.filter(i=>i.status!=='false-flag');
+          const hi = live.filter(i=>i.severity==='high').length;
+          return `<tr onclick="reopenReview('${m.id}')" style="cursor:pointer">
+            <td>${fileIcon(m.fileCategory||'other')}</td>
+            <td style="font-weight:600;color:var(--wood)">${escapeHtml(m.packagePath||m.fileName)}</td>
+            <td><span class="fcat ${m.fileCategory||'other'}">${escapeHtml((categoriseFile(m.fileName).label))}</span></td>
+            <td style="text-align:center">${live.length}</td>
+            <td style="text-align:center;color:${hi>0?'var(--red)':'var(--muted)'};font-weight:${hi>0?'800':'400'}">${hi}</td>
+            <td class="score-cell ${scls}" style="text-align:right">${adj}</td>
+            <td style="text-align:right"><button class="open-btn">Open →</button></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+
+    ${topIssues.length?`
+    <h3 style="font-size:.78rem;font-weight:800;color:var(--wood-light);text-transform:uppercase;letter-spacing:.5px;margin:22px 0 10px">Top Issues Across Package</h3>
+    <div class="common-issues-list">
+      ${topIssues.map((t,i)=>`<div class="ci-row">
+        <div class="ci-rank">#${i+1}</div>
+        <div class="ci-name">${escapeHtml(t[0])}</div>
+        <div class="ci-count">${t[1]}× across files</div>
+      </div>`).join('')}
+    </div>`:''}
+
+    <div class="action-btns">
+      <button class="secondary" onclick="exportPackage('${packageId}')">📥 Export package report (JSON)</button>
+      <button class="secondary" onclick="printResults()">🖨️ Print / save PDF</button>
+      <button class="secondary" onclick="newReview()">+ New review</button>
+    </div>`;
+}
+
+function exportPackage(packageId){
+  const pkg = getPackage(packageId);
+  if(!pkg)return;
+  const blob = new Blob([JSON.stringify(pkg,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (pkg.packageName||'package')+'-qa-review.json';
+  a.click();
+}
+
+function runAIReview(file, purpose, context, checks, projectNumber, projectName, version, reviewer){
+  // Simulated AI review — animated progress then mocked but realistic results.
+  const steps = [
+    'Parsing document structure…',
+    'Analysing content against purpose…',
+    'Running selected QA checks…',
+    'Compiling findings and score…'
+  ];
+  const panel = document.getElementById('resultsPanel');
+  panel.innerHTML = `
+    <div class="running-state">
+      <div class="spinner"></div>
+      <h3>Reviewing "${escapeHtml(file.name)}" <span class="live-badge ${isLive()?'live':'mock'}">${isLive()?'● Live · '+CONFIG.model:'● Mock'}</span></h3>
+      <p>Running ${checks.length} check${checks.length>1?'s':''}${isLive()?' via Claude':' (mock — set API key in Admin to go live)'}</p>
+      <div class="running-steps" id="runSteps">
+        ${steps.map((s,i)=>`<div class="rs-step" data-i="${i}"><span class="rs-ico"></span>${s}</div>`).join('')}
+      </div>
+    </div>`;
+
+  return new Promise(resolve=>{
+    const rs = panel.querySelectorAll('.rs-step');
+    let i = 0;
+    rs[0].classList.add('active');
+    const tick = ()=>{
+      if(i>0)rs[i-1].classList.remove('active'),rs[i-1].classList.add('done');
+      if(i<rs.length)rs[i].classList.add('active');
+      i++;
+      if(i<=rs.length)setTimeout(tick,1800);
+      else{
+        setTimeout(()=>{
+          rs[rs.length-1].classList.remove('active');
+          rs[rs.length-1].classList.add('done');
+          resolve(generateReview(file,purpose,context,checks,projectNumber,projectName,version,reviewer));
+        },600);
+      }
+    };
+    setTimeout(tick,600);
+  });
+}
+
+function generateReview(file, purpose, context, checks, projectNumber, projectName, version, reviewer){
+  version = version || 1;
+  reviewer = reviewer || CURRENT_USER;
+  // Seeded pseudo-random based on file name + checks + version so re-runs are stable-ish
+  const seed = (file.name+checks.join('')+purpose+'v'+version).split('').reduce((a,c)=>a+c.charCodeAt(0),0);
+  const rand = mulberry32(seed);
+
+  const tone = PURPOSE_TONE[purpose] || {bias:0,focus:[]};
+  // Each subsequent version should trend upward (author addresses prior feedback)
+  const versionBonus = (version-1) * (4 + Math.floor(rand()*4)); // +4 to +7 per version
+  const breakdown = {};
+  const issues = [];
+
+  checks.forEach(cid=>{
+    const focusPenalty = tone.focus.includes(cid) ? -5 : 0;
+    let score = Math.round(82 + tone.bias + focusPenalty + versionBonus + (rand()*20 - 8));
+    score = Math.max(40, Math.min(99, score));
+    breakdown[cid] = score;
+
+    // Issues: more when score is lower
+    const pool = ISSUE_POOL[cid] || [];
+    const n = score>=92 ? (rand()<0.4?1:0)
+            : score>=82 ? 1 + Math.floor(rand()*2)
+            : score>=70 ? 2 + Math.floor(rand()*2)
+            : 3 + Math.floor(rand()*2);
+    const shuffled = [...pool].sort(()=>rand()-0.5);
+    for(let k=0;k<Math.min(n,pool.length);k++){
+      issues.push({
+        id: 'i_'+Date.now()+'_'+Math.floor(rand()*1000000),
+        category: QA_CHECKS.find(c=>c.id===cid).title,
+        categoryId: cid,
+        title: shuffled[k].t,
+        severity: shuffled[k].s,
+        description: shuffled[k].d,
+        quote: shuffled[k].q,
+        fix: shuffled[k].f,
+        status: 'open'   // 'open' | 'acknowledged' | 'false-flag'
+      });
+    }
+  });
+
+  // Overall = weighted avg with small penalty for high-severity issues
+  const avg = Object.values(breakdown).reduce((a,b)=>a+b,0)/Object.values(breakdown).length;
+  const highCount = issues.filter(i=>i.severity==='high').length;
+  const medCount = issues.filter(i=>i.severity==='medium').length;
+  const overall = Math.max(30, Math.min(99, Math.round(avg - highCount*3 - medCount*1)));
+
+  return {
+    id: 'r_'+Date.now()+'_'+Math.floor(rand()*10000),
+    fileName: file.name,
+    fileSize: file.size,
+    projectNumber: projectNumber || null,
+    projectName: projectName || null,
+    purpose,
+    context,
+    checks,
+    breakdown,
+    issues,
+    overall,
+    reviewer,
+    date: new Date().toISOString()
+  };
+}
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
+
+/* ================== RESULTS RENDERING ================== */
+function adjustedScore(r){
+  if(!r.issues || !r.issues.length)return r.overall;
+  // False-flagged issues add their original penalty back to the score
+  const weight = {high:3, medium:1.5, low:0.5};
+  const bonus = r.issues
+    .filter(i=>i.status==='false-flag')
+    .reduce((a,i)=>a+(weight[i.severity]||0),0);
+  return Math.min(99, Math.round(r.overall + bonus));
+}
+
+function reviewerInitials(name){
+  if(!name)return '??';
+  return name.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+}
+
+function renderResults(r){
+  activeReview = r;
+  issueFilter = 'all';
+  const panel = document.getElementById('resultsPanel');
+  const adjusted = adjustedScore(r);
+  const tier = scoreTier(adjusted);
+  const ring = scoreRing(adjusted, tier.color);
+  const ffCount = (r.issues||[]).filter(i=>i.status==='false-flag').length;
+  const ackCount = (r.issues||[]).filter(i=>i.status==='acknowledged').length;
+
+  panel.innerHTML = `
+    <div class="score-header">
+      <div class="score-ring">
+        ${ring}
+        <div class="score-val"><div class="sv-num">${adjusted}</div><div class="sv-lbl">Readiness</div></div>
+      </div>
+      <div class="score-meta">
+        <div class="doc-name">
+          ${escapeHtml(r.fileName)}
+          ${r.version?`<span class="ver-badge ${r.version===1?'v1':''}" style="margin-left:8px;vertical-align:middle">v${r.version}</span>`:''}
+        </div>
+        <div class="doc-purpose">${escapeHtml(r.purpose)} · ${new Date(r.date).toLocaleString('en-NZ',{dateStyle:'medium',timeStyle:'short'})}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+          <span class="reviewer-chip" title="Reviewer who submitted this QA review">
+            <span class="ravatar">${escapeHtml(reviewerInitials(r.reviewer))}</span>
+            <span><div class="rname">${escapeHtml(r.reviewer||'—')}</div><div class="rrole">Reviewer</div></span>
+          </span>
+          <span class="score-pill ${tier.cls}">${tier.label}</span>
+          ${r.projectNumber?`<span class="score-pill" style="background:var(--water-pale);color:#3a6a70;border:1px solid var(--water);cursor:pointer" onclick="openProjectFromResults('${escapeHtml(r.projectNumber)}')">📁 ${escapeHtml(r.projectNumber)}${r.projectName?' · '+escapeHtml(r.projectName):''}</span>`:''}
+          ${versionDeltaPill(r)}
+        </div>
+        ${adjusted!==r.overall?`<div class="score-adj">AI score <span class="from">${r.overall}</span> <span class="arrow">→</span> <strong>${adjusted}</strong> after <span class="ff-count">${ffCount} false flag${ffCount===1?'':'s'}</span> dismissed${ackCount?` · ${ackCount} acknowledged`:''}</div>`:(ackCount?`<div class="score-adj">${ackCount} issue${ackCount===1?'':'s'} acknowledged</div>`:'')}
+      </div>
+    </div>
+
+    <h3 style="font-size:.78rem;font-weight:800;color:var(--wood-light);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Score by Check Type</h3>
+    <div class="breakdown">
+      ${r.checks.map(cid=>{
+        const s = r.breakdown[cid];
+        const bcls = s>=85?'hi':s>=70?'md':'lo';
+        const check = QA_CHECKS.find(c=>c.id===cid);
+        return `<div class="bd-card">
+          <div class="bd-label">${check.title}</div>
+          <div class="bd-val">${s}<span style="font-size:.7rem;color:var(--muted);font-weight:600"> / 100</span></div>
+          <div class="bd-bar"><div class="bd-bar-fill ${bcls}" style="width:${s}%"></div></div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="issues-head">
+      <h3>Issues Found (${r.issues.length})</h3>
+      <div class="filter-pills">
+        <span class="fp active" data-sev="all" onclick="filterIssues('all')">All</span>
+        <span class="fp" data-sev="high" onclick="filterIssues('high')">High</span>
+        <span class="fp" data-sev="medium" onclick="filterIssues('medium')">Medium</span>
+        <span class="fp" data-sev="low" onclick="filterIssues('low')">Low</span>
+      </div>
+    </div>
+    <div class="issue-list" id="issueList">${renderIssues(r.issues,'all')}</div>
+
+    <div class="action-btns">
+      ${r.docId?`<button class="secondary" style="background:var(--moss-pale);color:var(--moss-dark);border-color:var(--moss-light);font-weight:800" onclick="uploadNewVersionFor('${r.docId}')">🔄 Upload revision (v${(r.version||1)+1})</button>`:''}
+      <button class="secondary" onclick="exportReview()">📥 Export as JSON</button>
+      <button class="secondary" onclick="printResults()">🖨️ Print / save PDF</button>
+      <button class="secondary" onclick="newReview()">+ New review</button>
+    </div>`;
+}
+
+function scoreTier(s){
+  if(s>=90)return {label:'✅ Ready to submit',cls:'excellent',color:'#48773c'};
+  if(s>=75)return {label:'Submit with minor revisions',cls:'good',color:'#5a8f4c'};
+  if(s>=60)return {label:'Revise before submitting',cls:'fair',color:'#d4880f'};
+  return {label:'Significant rework needed',cls:'poor',color:'#c0392b'};
+}
+
+function scoreRing(score,color){
+  const r = 52, c = 2*Math.PI*r;
+  const dash = (score/100)*c;
+  return `<svg width="120" height="120">
+    <circle cx="60" cy="60" r="${r}" fill="none" stroke="#eef3eb" stroke-width="10"/>
+    <circle cx="60" cy="60" r="${r}" fill="none" stroke="${color}" stroke-width="10"
+      stroke-dasharray="${dash} ${c}" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function renderIssues(issues, filter){
+  const sevOrder = {high:0,medium:1,low:2};
+  const statOrder = {open:0, acknowledged:1, 'false-flag':2};
+  const sorted = [...issues].sort((a,b)=>{
+    const sa = statOrder[a.status||'open'], sb = statOrder[b.status||'open'];
+    if(sa!==sb)return sa-sb;
+    return sevOrder[a.severity]-sevOrder[b.severity];
+  });
+  const filtered = filter==='all' ? sorted : sorted.filter(i=>i.severity===filter);
+  if(!filtered.length)return `<div style="padding:24px;text-align:center;color:var(--muted);font-size:.82rem">No ${filter==='all'?'':filter+'-severity '}issues found.</div>`;
+  return filtered.map(i=>{
+    const st = i.status || 'open';
+    const stamp = st==='acknowledged' ? '<span class="status-stamp acknowledged">✓ Acknowledged</span>'
+               : st==='false-flag'    ? '<span class="status-stamp false-flag">🚫 False flag</span>'
+               : '';
+    const iid = escapeHtml(i.id||'');
+    return `<div class="issue sev-${i.severity} status-${st}" data-iid="${iid}">
+      <div class="issue-head">
+        <div class="issue-title">${escapeHtml(i.title)}</div>
+        <div class="issue-meta">
+          ${stamp}
+          <span class="sev-badge ${i.severity}">${i.severity}</span>
+          <span class="cat-badge">${escapeHtml(i.category)}</span>
+        </div>
+      </div>
+      <div class="issue-desc">${escapeHtml(i.description)}</div>
+      <div class="issue-quote">${escapeHtml(i.quote)}</div>
+      <div class="issue-fix"><strong>Suggested fix:</strong> ${escapeHtml(i.fix)}</div>
+      <div class="issue-actions">
+        <button class="iact ack ${st==='acknowledged'?'active':''}" onclick="setIssueStatus('${iid}','acknowledged')" title="I've seen this and will action it">${st==='acknowledged'?'✓ Acknowledged':'✓ Acknowledge'}</button>
+        <button class="iact flag ${st==='false-flag'?'active':''}" onclick="setIssueStatus('${iid}','false-flag')" title="The AI was wrong — this isn't actually an issue">${st==='false-flag'?'🚫 Marked as false flag':'🚫 False flag'}</button>
+        ${st!=='open'?`<button class="iact reset" onclick="setIssueStatus('${iid}','open')" title="Reset to open">↺ Reset</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setIssueStatus(issueId, newStatus){
+  if(!activeReview)return;
+  const issue = activeReview.issues.find(i=>i.id===issueId);
+  if(!issue)return;
+  issue.status = (issue.status===newStatus) ? 'open' : newStatus;  // toggle off if clicking the same one
+  const idx = reviews.findIndex(r=>r.id===activeReview.id);
+  if(idx>=0)reviews[idx] = activeReview;
+  saveReviews();
+  renderResults(activeReview);
+}
+
+function versionDeltaPill(r){
+  if(!r.docId)return '';
+  const sibs = reviews.filter(x=>x.docId===r.docId).sort((a,b)=>(a.version||1)-(b.version||1));
+  if(sibs.length<2)return '';
+  const idx = sibs.findIndex(x=>x.id===r.id);
+  if(idx<=0)return '';
+  const prev = sibs[idx-1];
+  const delta = r.overall - prev.overall;
+  const arrow = delta>0?'↑':delta<0?'↓':'→';
+  const bg = delta>0?'var(--moss-pale)':delta<0?'#faecea':'var(--sand-pale)';
+  const col = delta>0?'var(--moss-dark)':delta<0?'var(--red)':'var(--muted)';
+  return `<span class="score-pill" style="background:${bg};color:${col};border:1px solid ${delta>0?'var(--moss-light)':delta<0?'var(--red)':'var(--border)'}">${arrow} ${delta>=0?'+':''}${delta} vs v${prev.version||1}</span>`;
+}
+
+function filterIssues(sev){
+  issueFilter = sev;
+  document.querySelectorAll('.fp').forEach(p=>p.classList.toggle('active',p.dataset.sev===sev));
+  document.getElementById('issueList').innerHTML = renderIssues(activeReview.issues, sev);
+}
+
+function exportReview(){
+  const blob = new Blob([JSON.stringify(activeReview,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = activeReview.fileName.replace(/\.[^.]+$/,'')+'-qa-review.json';
+  a.click();
+}
+
+function printResults(){window.print();}
+
+function newReview(){
+  clearFile();
+  clearFolder();
+  parentDocId = null;
+  formMode = 'new';
+  document.getElementById('modeNew').classList.add('active');
+  document.getElementById('modeVersion').classList.remove('active');
+  document.getElementById('modePackage').classList.remove('active');
+  document.getElementById('singleFileMode').style.display = 'block';
+  document.getElementById('packageMode').style.display = 'none';
+  document.getElementById('uploadHeading').textContent = '1. Upload Document';
+  document.getElementById('submitBtn').textContent = 'Submit for AI QA Review';
+  document.getElementById('docPicker').style.display = 'none';
+  document.getElementById('parentChip').style.display = 'none';
+  document.getElementById('projectNumber').value='';
+  document.getElementById('projectName').value='';
+  document.getElementById('projHint').style.display='none';
+  document.getElementById('reviewer').value=CURRENT_USER;
+  document.getElementById('reviewDate').value=new Date().toLocaleDateString('en-NZ',{day:'2-digit',month:'short',year:'numeric'});
+  document.getElementById('purpose').value='';
+  document.getElementById('context').value='';
+  document.getElementById('resultsPanel').innerHTML = `
+    <div class="results-empty">
+      <div class="eico">🔍</div>
+      <div class="etitle">No review yet</div>
+      <div class="edesc">Submit a document on the left to see quality score, breakdown by check type, and a prioritised list of issues to address.</div>
+    </div>`;
+}
+
+/* ================== REPORTS ================== */
+let charts = {};
+
+function renderReports(){
+  renderStatCards();
+  renderTrendChart();
+  renderPurposeChart();
+  renderCommonIssues();
+  renderChecksChart();
+  renderRecentTable();
+}
+
+function renderStatCards(){
+  const total = reviews.length;
+  const avg = total ? Math.round(reviews.reduce((a,r)=>a+adjustedScore(r),0)/total) : 0;
+  const thisMonth = reviews.filter(r=>{
+    const d = new Date(r.date);
+    const now = new Date();
+    return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+  }).length;
+  // Exclude false-flagged issues from totals
+  const allIssues = reviews.flatMap(r=>r.issues).filter(i=>i.status!=='false-flag');
+  const highIssues = allIssues.filter(i=>i.severity==='high').length;
+  const tier = scoreTier(avg);
+  const uniqueProjects = new Set(reviews.filter(r=>r.projectNumber).map(r=>r.projectNumber)).size;
+
+  document.getElementById('statGrid').innerHTML = `
+    <div class="stat">
+      <div class="label">Total Reviews</div>
+      <div class="value">${total}</div>
+      <div class="note">${thisMonth} this month</div>
+    </div>
+    <div class="stat blue">
+      <div class="label">Avg Quality Score</div>
+      <div class="value">${avg}<span style="font-size:.7rem;color:var(--muted)"> / 100</span></div>
+      <div class="note">${total?tier.label:'No data yet'}</div>
+    </div>
+    <div class="stat amber">
+      <div class="label">Issues Found</div>
+      <div class="value">${allIssues.length}</div>
+      <div class="note">${highIssues} high-severity</div>
+    </div>
+    <div class="stat wood">
+      <div class="label">Projects Covered</div>
+      <div class="value">${uniqueProjects}</div>
+      <div class="note">With QA activity logged</div>
+    </div>`;
+}
+
+function topCheck(){
+  if(!reviews.length)return '—';
+  const counts = {};
+  reviews.forEach(r=>r.checks.forEach(c=>counts[c]=(counts[c]||0)+1));
+  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+  return top ? QA_CHECKS.find(c=>c.id===top[0]).title : '—';
+}
+
+function renderTrendChart(){
+  const ctx = document.getElementById('trendChart');
+  if(charts.trend)charts.trend.destroy();
+  if(!reviews.length){
+    ctx.getContext('2d').clearRect(0,0,ctx.width,ctx.height);
+    return;
+  }
+  const ordered = [...reviews].reverse();
+  charts.trend = new Chart(ctx,{
+    type:'line',
+    data:{
+      labels: ordered.map((r,i)=>`#${i+1}`),
+      datasets:[{
+        label:'Quality score',
+        data: ordered.map(r=>adjustedScore(r)),
+        borderColor:'#48773c',
+        backgroundColor:'rgba(72,119,60,0.12)',
+        fill:true,
+        tension:.3,
+        pointBackgroundColor:'#48773c',
+        pointRadius:4
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{title:(ctx)=>ordered[ctx[0].dataIndex].fileName}}},
+      scales:{y:{beginAtZero:false,min:40,max:100,ticks:{font:{size:10}}},x:{ticks:{font:{size:10}}}}
+    }
+  });
+}
+
+function renderPurposeChart(){
+  const ctx = document.getElementById('purposeChart');
+  if(charts.purpose)charts.purpose.destroy();
+  const counts = {};
+  reviews.forEach(r=>counts[r.purpose]=(counts[r.purpose]||0)+1);
+  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if(!entries.length){
+    ctx.getContext('2d').clearRect(0,0,ctx.width,ctx.height);
+    return;
+  }
+  charts.purpose = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels: entries.map(e=>e[0].length>28?e[0].slice(0,26)+'…':e[0]),
+      datasets:[{
+        data: entries.map(e=>e[1]),
+        backgroundColor:'#5a8f4c',
+        borderRadius:4
+      }]
+    },
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{beginAtZero:true,ticks:{stepSize:1,font:{size:10}}},y:{ticks:{font:{size:10}}}}
+    }
+  });
+}
+
+function renderCommonIssues(){
+  const counts = {};
+  reviews.flatMap(r=>r.issues).filter(i=>i.status!=='false-flag').forEach(i=>{
+    const key = i.title;
+    counts[key]=(counts[key]||0)+1;
+  });
+  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const el = document.getElementById('commonIssues');
+  if(!top.length){el.innerHTML='<div style="color:var(--muted);font-size:.78rem;padding:14px;text-align:center;font-style:italic">No issues logged yet — submit a review to populate.</div>';return;}
+  el.innerHTML = top.map((t,i)=>`
+    <div class="ci-row">
+      <div class="ci-rank">#${i+1}</div>
+      <div class="ci-name">${escapeHtml(t[0])}</div>
+      <div class="ci-count">${t[1]}×</div>
+    </div>`).join('');
+}
+
+function renderChecksChart(){
+  const ctx = document.getElementById('checksChart');
+  if(charts.checks)charts.checks.destroy();
+  const counts = {};
+  reviews.forEach(r=>r.checks.forEach(c=>counts[c]=(counts[c]||0)+1));
+  const entries = QA_CHECKS.map(c=>[c.title, counts[c.id]||0]).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]);
+  if(!entries.length){
+    ctx.getContext('2d').clearRect(0,0,ctx.width,ctx.height);
+    return;
+  }
+  charts.checks = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:entries.map(e=>e[0]),
+      datasets:[{data:entries.map(e=>e[1]),backgroundColor:'#3a6a70',borderRadius:4}]
+    },
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{beginAtZero:true,ticks:{stepSize:1,font:{size:10}}},y:{ticks:{font:{size:10}}}}
+    }
+  });
+}
+
+let recentDateFilter = 'all';
+function setRecentDateFilter(f){recentDateFilter = f; renderRecentTable();}
+
+function renderRecentTable(){
+  const tb = document.getElementById('recentBody');
+
+  // Filter pills
+  const fp = document.getElementById('recentDateFilter');
+  if(fp){
+    fp.innerHTML = ['all','7d','30d','90d','ytd'].map(f=>{
+      const lbl = {all:'All','7d':'7d','30d':'30d','90d':'90d',ytd:'YTD'}[f];
+      return `<span class="fp ${recentDateFilter===f?'active':''}" onclick="setRecentDateFilter('${f}')">${lbl}</span>`;
+    }).join('');
+  }
+
+  let visible = reviews;
+  if(recentDateFilter !== 'all'){
+    const cutoff = dateCutoff(recentDateFilter);
+    visible = reviews.filter(r=>new Date(r.date) >= cutoff);
+  }
+
+  if(!visible.length){
+    tb.innerHTML = `<tr><td colspan="8" class="empty">${reviews.length?'No reviews in this date range.':'No reviews yet — submit one from the New Review tab.'}</td></tr>`;
+    return;
+  }
+  // Group package members so they show as one row per package
+  const seenPackages = new Set();
+  const display = [];
+  visible.forEach(r=>{
+    if(r.packageId){
+      if(seenPackages.has(r.packageId))return;
+      seenPackages.add(r.packageId);
+      display.push({type:'package', packageId:r.packageId});
+    } else {
+      display.push({type:'review', review:r});
+    }
+  });
+
+  tb.innerHTML = display.slice(0,15).map(item=>{
+    if(item.type==='package'){
+      const pkg = getPackage(item.packageId);
+      if(!pkg)return '';
+      const scls = pkg.avg>=85?'hi':pkg.avg>=70?'md':'lo';
+      return `<tr style="background:var(--moss-pale)">
+        <td style="font-weight:700;color:var(--moss-dark);font-variant-numeric:tabular-nums">${pkg.projectNumber?escapeHtml(pkg.projectNumber):'—'}</td>
+        <td style="font-weight:700;color:var(--wood)">📁 ${escapeHtml(pkg.packageName)} <span class="ver-badge" style="margin-left:6px;background:var(--moss);color:#fff;border-color:var(--moss)">PKG · ${pkg.members.length} files</span></td>
+        <td>${escapeHtml(pkg.purpose)}</td>
+        <td>${escapeHtml(pkg.reviewer)}</td>
+        <td>${new Date(pkg.date).toLocaleDateString('en-NZ',{day:'2-digit',month:'short',year:'numeric'})}</td>
+        <td>${pkg.members[0]?.checks.length||0}</td>
+        <td style="text-align:right" class="score-cell ${scls}">${pkg.avg}</td>
+        <td><button class="view-btn" onclick="reopenPackage('${pkg.packageId}')">Open →</button></td>
+      </tr>`;
+    }
+    const r = item.review;
+    const adj = adjustedScore(r);
+    const scls = adj>=85?'hi':adj>=70?'md':'lo';
+    const vBadge = r.version ? `<span class="ver-badge ${r.version===1?'v1':''}" style="margin-left:6px">v${r.version}</span>` : '';
+    const adjMark = adj!==r.overall ? `<span style="font-size:.6rem;color:var(--muted);font-weight:600;margin-left:4px" title="Adjusted from AI score ${r.overall} after dismissed false flags">±</span>` : '';
+    return `<tr>
+      <td style="font-weight:700;color:var(--moss-dark);font-variant-numeric:tabular-nums">${r.projectNumber?escapeHtml(r.projectNumber):'<span style="color:var(--muted);font-weight:400">—</span>'}</td>
+      <td style="font-weight:600;color:var(--wood)">${escapeHtml(r.fileName)}${vBadge}</td>
+      <td>${escapeHtml(r.purpose)}</td>
+      <td>${escapeHtml(r.reviewer)}</td>
+      <td>${new Date(r.date).toLocaleDateString('en-NZ',{day:'2-digit',month:'short',year:'numeric'})}</td>
+      <td>${r.checks.length}</td>
+      <td style="text-align:right" class="score-cell ${scls}">${adj}${adjMark}</td>
+      <td><button class="view-btn" onclick="reopenReview('${r.id}')">View →</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function reopenPackage(packageId){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active', i===0));
+  document.querySelectorAll('.view').forEach(vw=>vw.classList.remove('active'));
+  document.getElementById('view-new').classList.add('active');
+  renderPackageResults(packageId);
+}
+
+/* ================== MY DOCUMENTS ================== */
+let myDocsDateFilter = 'all';   // 'all' | '7d' | '30d' | '90d' | 'ytd'
+let myDocsExpanded = new Set();
+
+function dateCutoff(period){
+  const now = new Date();
+  switch(period){
+    case '7d':  return new Date(now.getTime() - 7  * 86400000);
+    case '30d': return new Date(now.getTime() - 30 * 86400000);
+    case '90d': return new Date(now.getTime() - 90 * 86400000);
+    case 'ytd': return new Date(now.getFullYear(), 0, 1);
+    default: return new Date(0);
+  }
+}
+
+function relTime(iso){
+  const ms = Date.now() - new Date(iso).getTime();
+  const d = Math.floor(ms / 86400000);
+  if(d===0)return 'Today';
+  if(d===1)return 'Yesterday';
+  if(d<7)return d+'d ago';
+  if(d<30)return Math.floor(d/7)+'w ago';
+  if(d<365)return Math.floor(d/30)+'mo ago';
+  return Math.floor(d/365)+'y ago';
+}
+
+function setMyDocsDateFilter(f){
+  myDocsDateFilter = f;
+  renderMyDocs();
+}
+
+function renderMyDocs(){
+  const list = document.getElementById('mydocsList');
+  const q = (document.getElementById('mydocsSearch').value||'').toLowerCase().trim();
+  let docs = getDocuments(CURRENT_USER);
+  const totalOwned = docs.length;
+
+  document.getElementById('mydocsSub').textContent =
+    `Documents you've submitted for QA. Filter by recency, search, expand any row to see version history.`;
+
+  // Date filter (uses latest version date)
+  const cutoff = dateCutoff(myDocsDateFilter);
+  if(myDocsDateFilter !== 'all'){
+    docs = docs.filter(d=>new Date(d.latestDate) >= cutoff);
+  }
+
+  // Search filter
+  if(q){
+    docs = docs.filter(d=>
+      d.title.toLowerCase().includes(q) ||
+      (d.projectNumber||'').toLowerCase().includes(q) ||
+      (d.projectName||'').toLowerCase().includes(q) ||
+      (d.purpose||'').toLowerCase().includes(q)
+    );
+  }
+
+  const filterPills = ['all','7d','30d','90d','ytd'].map(f=>{
+    const lbl = {all:'All time','7d':'Last 7 days','30d':'Last 30 days','90d':'Last 90 days',ytd:'Year to date'}[f];
+    return `<span class="fp ${myDocsDateFilter===f?'active':''}" onclick="setMyDocsDateFilter('${f}')">${lbl}</span>`;
+  }).join('');
+
+  const toolbar = `
+    <div class="mydocs-toolbar">
+      <div class="filter-grp">
+        <span class="grp-lbl">Date</span>
+        <div class="filter-pills">${filterPills}</div>
+      </div>
+      <div class="mydocs-count"><strong>${docs.length}</strong> of ${totalOwned} documents</div>
+    </div>`;
+
+  if(!docs.length){
+    list.innerHTML = toolbar + `<div class="projects-empty">
+      <div class="peico">📘</div>
+      <div class="ptitle">${totalOwned ? 'No documents in this date range' : "You haven't submitted any documents yet"}</div>
+      <div class="pdesc">${totalOwned ? 'Try a wider date range or different search term.' : 'Submit your first QA review from the New Review tab — every document you upload will appear here so you can track versions and re-upload revisions.'}</div>
+    </div>`;
+    return;
+  }
+
+  // Compact sparkline (max 8 bars)
+  function compactSpark(versions){
+    const slice = versions.slice(-8);
+    return slice.map(v=>{
+      const h = Math.max(15, Math.round(v.overall));
+      const sc = v.overall>=85?'hi':v.overall>=70?'md':'lo';
+      return `<span class="sb ${sc}" style="height:${h}%" title="v${v.version||1}: ${v.overall}"></span>`;
+    }).join('');
+  }
+
+  const rows = docs.map(d=>{
+    const scls = d.latestScore>=85?'hi':d.latestScore>=70?'md':'lo';
+    const trendCls = d.trend>0?'up':d.trend<0?'down':'flat';
+    const trendTxt = d.versions.length<2 ? '—' : (d.trend>0?'↑ +'+d.trend:d.trend<0?'↓ '+d.trend:'→ 0');
+    const liveIssues = d.latest.issues.filter(i=>i.status!=='false-flag').length;
+    const highIssues = d.latest.issues.filter(i=>i.severity==='high'&&i.status!=='false-flag').length;
+    const issCls = highIssues>0 ? 'high' : liveIssues>0 ? 'has' : '';
+    const expanded = myDocsExpanded.has(d.docId);
+
+    const main = `<tr class="md-row-toggle ${expanded?'open expanded':''}" onclick="toggleMyDocRow('${d.docId}')">
+      <td style="width:18px"><span class="md-tog-ico">▶</span></td>
+      <td class="md-doc-cell">
+        <span class="md-fname">📘 ${escapeHtml(d.title)}</span>
+        <div class="md-doc-sub">${d.projectNumber?`<span class="md-proj">${escapeHtml(d.projectNumber)}</span> · `:''}${escapeHtml(d.purpose)}</div>
+      </td>
+      <td><span class="md-vbadge">v${d.latestVersion}</span> <span style="font-size:.66rem;color:var(--muted);margin-left:3px">of ${d.versions.length}</span></td>
+      <td><span class="md-spark">${compactSpark(d.versions)}</span></td>
+      <td class="md-score ${scls}">${d.latestScore}</td>
+      <td><span class="md-trend ${trendCls}">${trendTxt}</span></td>
+      <td class="md-issues-cell ${issCls}">${liveIssues}${highIssues?` <span style="font-size:.6rem">(${highIssues}H)</span>`:''}</td>
+      <td class="md-when">${relTime(d.latestDate)}</td>
+      <td class="md-actions" onclick="event.stopPropagation()">
+        <button onclick="reopenReview('${d.latest.id}')">Open</button>
+        <button class="primary" onclick="uploadNewVersionFor('${d.docId}')">+ v${d.latestVersion+1}</button>
+      </td>
+    </tr>`;
+
+    const versionList = !expanded ? '' : `<tr class="md-versions-row">
+      <td colspan="9">
+        <div class="md-versions-inner">
+          <h5>Version history (${d.versions.length})</h5>
+          <div class="md-vlist">
+            ${[...d.versions].reverse().map(v=>{
+              const adj = adjustedScore(v);
+              const vc = adj>=85?'hi':adj>=70?'md':'lo';
+              const live = v.issues.filter(i=>i.status!=='false-flag').length;
+              return `<div class="md-vrow">
+                <span class="v">v${v.version||1}</span>
+                <span class="when">${new Date(v.date).toLocaleDateString('en-NZ',{day:'2-digit',month:'short',year:'numeric'})} · ${escapeHtml(v.fileName)}</span>
+                <span class="iss">${live} issue${live===1?'':'s'}</span>
+                <span class="sc ${vc}">${adj}</span>
+                <button class="open-link" onclick="reopenReview('${v.id}')">Open →</button>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </td>
+    </tr>`;
+
+    return main + versionList;
+  }).join('');
+
+  list.innerHTML = toolbar + `
+    <table class="mydocs-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Document</th>
+          <th>Version</th>
+          <th>History</th>
+          <th style="text-align:right">Score</th>
+          <th>Trend</th>
+          <th style="text-align:center">Issues</th>
+          <th>Last review</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function toggleMyDocRow(docId){
+  if(myDocsExpanded.has(docId))myDocsExpanded.delete(docId);
+  else myDocsExpanded.add(docId);
+  renderMyDocs();
+}
+
+function uploadNewVersionFor(docId){
+  parentDocId = docId;
+  formMode = 'version';
+  // Switch tab
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active', i===0));
+  document.querySelectorAll('.view').forEach(vw=>vw.classList.remove('active'));
+  document.getElementById('view-new').classList.add('active');
+  // Update toggle UI and render chip
+  document.getElementById('modeNew').classList.remove('active');
+  document.getElementById('modeVersion').classList.add('active');
+  renderParentChip();
+  // Clear any previous file
+  clearFile();
+  // Scroll to top so the user sees the chip
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ================== PROJECT REGISTER ================== */
+function renderProjectRegister(){
+  const list = document.getElementById('projectList');
+  const q = (document.getElementById('projectSearch').value||'').toLowerCase().trim();
+
+  // Group reviews by project number
+  const groups = {};
+  reviews.forEach(r=>{
+    if(!r.projectNumber)return;
+    if(!groups[r.projectNumber])groups[r.projectNumber] = {number:r.projectNumber, name:'', reviews:[]};
+    groups[r.projectNumber].reviews.push(r);
+    if(r.projectName)groups[r.projectNumber].name = r.projectName;
+  });
+
+  let projects = Object.values(groups).map(g=>{
+    g.reviews.sort((a,b)=>new Date(b.date)-new Date(a.date));
+    g.avgScore = Math.round(g.reviews.reduce((a,r)=>a+adjustedScore(r),0)/g.reviews.length);
+    g.latestDate = g.reviews[0].date;
+    g.totalIssues = g.reviews.reduce((a,r)=>a+r.issues.filter(i=>i.status!=='false-flag').length,0);
+    return g;
+  }).sort((a,b)=>new Date(b.latestDate)-new Date(a.latestDate));
+
+  if(q)projects = projects.filter(p=>p.number.toLowerCase().includes(q) || (p.name||'').toLowerCase().includes(q));
+
+  if(!projects.length){
+    list.innerHTML = `<div class="projects-empty">
+      <div class="peico">📁</div>
+      <div class="ptitle">${reviews.length?'No projects match your search':'No projects registered yet'}</div>
+      <div class="pdesc">${reviews.length?'Try a different project number or name.':'Submit your first QA review from the New Review tab — the project number is auto-detected from the filename.'}</div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = projects.map(p=>{
+    const scls = p.avgScore>=85?'hi':p.avgScore>=70?'md':'lo';
+    return `<div class="project-card" id="pc-${cssEsc(p.number)}">
+      <div class="project-head" onclick="toggleProject('${cssEsc(p.number)}')">
+        <span class="pc-toggle">▶</span>
+        <div>
+          <div class="pc-num">${escapeHtml(p.number)}</div>
+          ${p.name?`<div class="pc-name">${escapeHtml(p.name)}</div>`:''}
+        </div>
+        <div class="pc-meta"><div class="pm-val">${p.reviews.length}</div><div class="pm-lbl">Reviews</div></div>
+        <div class="pc-meta"><div class="pm-val">${p.totalIssues}</div><div class="pm-lbl">Issues</div></div>
+        <div class="pc-meta score"><div class="pm-val ${scls}">${p.avgScore}</div><div class="pm-lbl">Avg score</div></div>
+        <div class="pc-meta"><div class="pm-val" style="font-size:.74rem;font-weight:600">${new Date(p.latestDate).toLocaleDateString('en-NZ',{day:'2-digit',month:'short',year:'2-digit'})}</div><div class="pm-lbl">Latest</div></div>
+      </div>
+      <div class="project-body">
+        <table class="proj-reviews">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Document</th>
+              <th>Purpose</th>
+              <th>Reviewer</th>
+              <th style="text-align:center">Checks</th>
+              <th style="text-align:center">Issues</th>
+              <th style="text-align:right">Score</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${p.reviews.map(r=>{
+              const rscls = r.overall>=85?'hi':r.overall>=70?'md':'lo';
+              const vBadge = r.version ? `<span class="ver-badge ${r.version===1?'v1':''}" style="margin-left:6px">v${r.version}</span>` : '';
+              return `<tr>
+                <td>${new Date(r.date).toLocaleDateString('en-NZ',{day:'2-digit',month:'short',year:'2-digit'})}</td>
+                <td style="font-weight:600;color:var(--wood)">${escapeHtml(r.fileName)}${vBadge}</td>
+                <td>${escapeHtml(r.purpose)}</td>
+                <td>${escapeHtml(r.reviewer)}</td>
+                <td style="text-align:center">${r.checks.length}</td>
+                <td style="text-align:center">${r.issues.length}</td>
+                <td class="score-cell ${rscls}">${r.overall}</td>
+                <td style="text-align:right"><button class="view-btn" onclick="reopenReview('${r.id}')">View →</button></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function cssEsc(s){return s.replace(/[^A-Za-z0-9_-]/g,'_');}
+
+function toggleProject(id){
+  document.getElementById('pc-'+id).classList.toggle('open');
+}
+
+function openProjectFromResults(num){
+  // programmatic tab switch (can't rely on event.target here)
+  document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('active', i===1);});
+  document.querySelectorAll('.view').forEach(vw=>vw.classList.remove('active'));
+  document.getElementById('view-projects').classList.add('active');
+  renderProjectRegister();
+  setTimeout(()=>{
+    const el = document.getElementById('pc-'+cssEsc(num));
+    if(el){el.classList.add('open');el.scrollIntoView({behavior:'smooth',block:'center'});}
+  },50);
+}
+
+function reopenReview(id){
+  const r = reviews.find(x=>x.id===id);
+  if(!r)return;
+  activeReview = r;
+  document.querySelector('.tab').click();
+  renderResults(r);
+}
+
+function clearAllReviews(){
+  if(!confirm('Delete all QA reviews? This cannot be undone.'))return;
+  reviews = [];
+  saveReviews();
+  renderReports();
+}
+
+/* ================== ADMIN UI ================== */
+function renderAdmin(){
+  const gate = document.getElementById('adminGate');
+  const panel = document.getElementById('adminPanel');
+  if(!CONFIG.adminPasswordHash){
+    // First-time setup
+    gate.style.display='block';panel.style.display='none';
+    gate.innerHTML = `
+      <div class="admin-gate">
+        <h2>🔒 Set Admin Password</h2>
+        <p>The admin area controls AI model settings, prompts and API keys. Set a password to gate access.</p>
+        <div class="field"><label>New password (min 4 chars)</label><input type="password" id="setupPwd" autocomplete="new-password"/></div>
+        <div class="field"><label>Confirm password</label><input type="password" id="setupPwd2" autocomplete="new-password" onkeypress="if(event.key==='Enter')setupAdminPassword()"/></div>
+        <button class="primary" onclick="setupAdminPassword()">Set password &amp; continue</button>
+        <button class="secondary" style="margin-top:8px;width:100%" onclick="skipAdminPassword()">Skip — leave admin area open (not recommended)</button>
+        <div class="warn"><strong>Prototype-grade security.</strong> Password is hashed and stored in browser localStorage. Anyone with browser devtools can bypass it. For production, gate this behind a real auth layer.</div>
+      </div>`;
+    return;
+  }
+  if(!isAdminUnlocked()){
+    gate.style.display='block';panel.style.display='none';
+    gate.innerHTML = `
+      <div class="admin-gate">
+        <h2>🔒 Admin Access</h2>
+        <p>Enter the admin password to view and edit settings.</p>
+        <div class="field"><label>Password</label><input type="password" id="adminPwd" autocomplete="current-password" onkeypress="if(event.key==='Enter')unlockAdmin()" autofocus/></div>
+        <div id="adminPwdErr" class="test-status"></div>
+        <button class="primary" onclick="unlockAdmin()">Unlock</button>
+        <button class="secondary" style="margin-top:8px;width:100%;color:var(--red)" onclick="resetAdminPassword()">Forgot password — reset (clears all settings)</button>
+      </div>`;
+    return;
+  }
+  gate.style.display='none';
+  panel.style.display='block';
+  panel.innerHTML = adminPanelHtml();
+  // Attach prompt-area placeholder click handlers
+  panel.querySelectorAll('.placeholder-tag').forEach(t=>t.addEventListener('click',()=>insertPlaceholder(t.textContent)));
+}
+
+function setupAdminPassword(){
+  const a = document.getElementById('setupPwd').value;
+  const b = document.getElementById('setupPwd2').value;
+  if(a.length<4){alert('Password must be at least 4 characters.');return;}
+  if(a!==b){alert('Passwords do not match.');return;}
+  CONFIG.adminPasswordHash = hashPin(a);
+  saveConfig(CONFIG);
+  sessionStorage.setItem('mck-qa-admin-unlocked','1');
+  renderAdmin();
+}
+
+function skipAdminPassword(){
+  if(!confirm('Leave admin open without a password? Anyone with access to this browser will be able to edit AI settings and read the API key.'))return;
+  sessionStorage.setItem('mck-qa-admin-unlocked','1');
+  CONFIG.adminPasswordHash = '';
+  saveConfig(CONFIG);
+  renderAdmin();
+}
+
+function unlockAdmin(){
+  const pwd = document.getElementById('adminPwd').value;
+  const err = document.getElementById('adminPwdErr');
+  if(hashPin(pwd) === CONFIG.adminPasswordHash){
+    sessionStorage.setItem('mck-qa-admin-unlocked','1');
+    renderAdmin();
+  } else {
+    err.className = 'test-status err';
+    err.textContent = 'Incorrect password.';
+  }
+}
+
+function resetAdminPassword(){
+  if(!confirm('This will clear the admin password AND all admin settings (API key, prompts, model). Reviews will be kept. Continue?'))return;
+  CONFIG = {...DEFAULT_CONFIG};
+  saveConfig(CONFIG);
+  sessionStorage.removeItem('mck-qa-admin-unlocked');
+  renderAdmin();
+}
+
+function lockAdmin(){
+  sessionStorage.removeItem('mck-qa-admin-unlocked');
+  renderAdmin();
+}
+
+function adminPanelHtml(){
+  const live = isLive();
+  return `
+    <div class="row-between" style="margin-bottom:6px">
+      <div>
+        <h2 style="font-size:1.1rem;font-weight:800;color:var(--wood)">Admin Settings <span class="live-badge ${live?'live':'mock'}">${live?'● Live (Claude)':'● Mock mode'}</span></h2>
+        <p style="font-size:.78rem;color:var(--muted);margin-top:2px">Configure AI provider, system prompt, per-check overrides and data management.</p>
+      </div>
+      <button class="secondary" onclick="lockAdmin()">🔓 Lock admin</button>
+    </div>
+
+    <!-- AI PROVIDER -->
+    <div class="admin-section">
+      <h3>🤖 AI Provider</h3>
+      <p class="sec-sub">Anthropic Claude is used for QA reviews. The key is stored in browser localStorage — wire this to a backend in production.</p>
+
+      <div class="field">
+        <label>Anthropic API Key</label>
+        <div class="key-row">
+          <div class="field"><input type="password" id="cfgApiKey" placeholder="sk-ant-api03-…" value="${escapeHtml(CONFIG.apiKey)}" autocomplete="off"/></div>
+          <button class="secondary" onclick="togglePwd('cfgApiKey')" type="button">👁 Show</button>
+          <button class="secondary" onclick="testConnection()">⚡ Test</button>
+        </div>
+        <div class="hint">Format: sk-ant-… — generate at console.anthropic.com</div>
+        <div id="testResult" class="test-status"></div>
+      </div>
+
+      <div class="field-row" style="margin-top:10px">
+        <div class="field">
+          <label>Model</label>
+          <select id="cfgModel">
+            <option value="claude-opus-4-7" ${CONFIG.model==='claude-opus-4-7'?'selected':''}>Claude Opus 4.7 — most capable</option>
+            <option value="claude-sonnet-4-6" ${CONFIG.model==='claude-sonnet-4-6'?'selected':''}>Claude Sonnet 4.6 — balanced</option>
+            <option value="claude-haiku-4-5-20251001" ${CONFIG.model==='claude-haiku-4-5-20251001'?'selected':''}>Claude Haiku 4.5 — fastest / cheapest</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Max output tokens</label>
+          <input type="text" id="cfgMaxTokens" value="${CONFIG.maxTokens}"/>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Temperature (0.0 – 1.0)</label>
+          <input type="text" id="cfgTemperature" value="${CONFIG.temperature}"/>
+          <div class="hint">Lower = more deterministic. Recommended 0.1 – 0.3 for QA.</div>
+        </div>
+        <div class="field"></div>
+      </div>
+    </div>
+
+    <!-- SYSTEM PROMPT -->
+    <div class="admin-section">
+      <h3>📝 Review System Prompt</h3>
+      <p class="sec-sub">The instructions Claude receives when running a QA review. Use placeholders to inject document context.</p>
+      <div class="placeholder-list">
+        <span class="placeholder-tag">{filename}</span>
+        <span class="placeholder-tag">{purpose}</span>
+        <span class="placeholder-tag">{projectNumber}</span>
+        <span class="placeholder-tag">{projectName}</span>
+        <span class="placeholder-tag">{context}</span>
+        <span class="placeholder-tag">{checks}</span>
+        <span class="placeholder-tag">{version}</span>
+      </div>
+      <textarea id="cfgSystemPrompt" class="prompt-area">${escapeHtml(CONFIG.systemPrompt)}</textarea>
+      <div class="btn-row-2">
+        <button class="secondary" onclick="resetSystemPrompt()">↺ Reset to default</button>
+      </div>
+    </div>
+
+    <!-- PER-CHECK PROMPTS -->
+    <div class="admin-section">
+      <h3>🎯 Per-Check Prompt Overrides</h3>
+      <p class="sec-sub">Additional instructions appended when a specific QA check is selected. Leave blank to use defaults.</p>
+      <div class="check-prompts">
+        ${QA_CHECKS.map(c=>`
+          <div class="check-prompt-row">
+            <div class="cpr-head">
+              <span class="cpr-title">${c.title}</span>
+              <span class="cpr-desc">— ${c.desc}</span>
+            </div>
+            <textarea data-check="${c.id}" class="cfgCheckPrompt">${escapeHtml(CONFIG.checkPrompts[c.id]||'')}</textarea>
+          </div>`).join('')}
+      </div>
+      <div class="btn-row-2">
+        <button class="secondary" onclick="resetCheckPrompts()">↺ Reset all to default</button>
+      </div>
+    </div>
+
+    <!-- SAVE BAR -->
+    <div class="admin-section" style="position:sticky;bottom:14px;background:linear-gradient(180deg,#fff 0%,var(--moss-pale) 100%);border-color:var(--moss-light);box-shadow:0 4px 14px rgba(72,119,60,0.15)">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:.84rem;font-weight:800;color:var(--wood)">Save changes</div>
+          <div style="font-size:.7rem;color:var(--muted)">Settings are saved to your browser only.</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="secondary" onclick="renderAdmin()">Discard</button>
+          <button class="primary" style="width:auto;padding:9px 22px" onclick="saveAdminSettings()">💾 Save settings</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DANGER ZONE -->
+    <div class="admin-section danger">
+      <h3>⚠️ Data Management</h3>
+      <p class="sec-sub">Export all QA reviews for backup, import from another browser, or wipe everything.</p>
+      <div class="btn-row-2">
+        <button class="secondary" onclick="exportAllReviews()">📥 Export all reviews (JSON)</button>
+        <button class="secondary" onclick="document.getElementById('importInput').click()">📤 Import reviews (JSON)</button>
+        <input type="file" id="importInput" accept=".json" style="display:none" onchange="importReviews(event)"/>
+        <button class="secondary" style="color:var(--red);border-color:#f5c0b8" onclick="clearAllReviews()">🗑️ Clear all reviews</button>
+        <button class="secondary" style="color:var(--red);border-color:#f5c0b8" onclick="resetAdminPassword()">🔑 Reset admin password &amp; settings</button>
+      </div>
+    </div>
+  `;
+}
+
+function togglePwd(id){
+  const el = document.getElementById(id);
+  el.type = el.type==='password' ? 'text' : 'password';
+}
+
+function insertPlaceholder(token){
+  const ta = document.getElementById('cfgSystemPrompt');
+  if(!ta)return;
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  ta.value = ta.value.slice(0,start)+token+ta.value.slice(end);
+  ta.focus();
+  ta.selectionStart = ta.selectionEnd = start + token.length;
+}
+
+function resetSystemPrompt(){
+  if(!confirm('Reset system prompt to default?'))return;
+  document.getElementById('cfgSystemPrompt').value = DEFAULT_SYSTEM_PROMPT;
+}
+
+function resetCheckPrompts(){
+  if(!confirm('Reset all per-check prompts to default?'))return;
+  document.querySelectorAll('.cfgCheckPrompt').forEach(t=>{
+    t.value = DEFAULT_CHECK_PROMPTS[t.dataset.check] || '';
+  });
+}
+
+function saveAdminSettings(){
+  const newCfg = {
+    apiKey: document.getElementById('cfgApiKey').value.trim(),
+    model: document.getElementById('cfgModel').value,
+    maxTokens: parseInt(document.getElementById('cfgMaxTokens').value)||4096,
+    temperature: Math.max(0,Math.min(1,parseFloat(document.getElementById('cfgTemperature').value)||0.2)),
+    systemPrompt: document.getElementById('cfgSystemPrompt').value,
+    checkPrompts: {},
+    adminPasswordHash: CONFIG.adminPasswordHash
+  };
+  document.querySelectorAll('.cfgCheckPrompt').forEach(t=>{
+    newCfg.checkPrompts[t.dataset.check] = t.value;
+  });
+  CONFIG = newCfg;
+  saveConfig(CONFIG);
+  // Show toast
+  const sec = document.querySelector('.admin-section');
+  const flash = document.createElement('div');
+  flash.className = 'test-status ok';
+  flash.textContent = '✓ Settings saved';
+  flash.style.position='fixed';flash.style.top='80px';flash.style.right='30px';flash.style.zIndex='200';flash.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';
+  document.body.appendChild(flash);
+  setTimeout(()=>flash.remove(),2000);
+  // Re-render to refresh live badge
+  renderAdmin();
+}
+
+function testConnection(){
+  const key = document.getElementById('cfgApiKey').value.trim();
+  const r = document.getElementById('testResult');
+  if(!key){r.className='test-status err';r.textContent='Enter an API key first.';return;}
+  if(!key.startsWith('sk-ant-')){r.className='test-status err';r.textContent='Doesn\u2019t look like an Anthropic key — should start with sk-ant-';return;}
+  r.className='test-status info';r.textContent='Testing…';
+  // We can't actually call the Anthropic API from a static page (CORS). Simulate.
+  setTimeout(()=>{
+    r.className='test-status ok';
+    r.innerHTML = '✓ Key format valid. <strong>Note:</strong> direct browser → Anthropic calls are blocked by CORS — wire a backend proxy at <code>/api/qa-review</code> to use the key for real reviews.';
+  },800);
+}
+
+function exportAllReviews(){
+  const blob = new Blob([JSON.stringify({exported:new Date().toISOString(),reviews},null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'mck-qa-reviews-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+}
+
+function importReviews(e){
+  const f = e.target.files[0];
+  if(!f)return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const parsed = JSON.parse(reader.result);
+      const incoming = parsed.reviews || parsed;
+      if(!Array.isArray(incoming))throw new Error('Expected array');
+      if(!confirm(`Import ${incoming.length} review(s)? Existing reviews will be kept; duplicates (same id) will be skipped.`))return;
+      const existingIds = new Set(reviews.map(r=>r.id));
+      let added = 0;
+      incoming.forEach(r=>{if(r.id && !existingIds.has(r.id)){reviews.push(r);added++;}});
+      reviews.sort((a,b)=>new Date(b.date)-new Date(a.date));
+      saveReviews();
+      alert(`Imported ${added} new review${added===1?'':'s'}.`);
+    }catch(err){alert('Import failed: '+err.message);}
+    e.target.value = '';
+  };
+  reader.readAsText(f);
+}
+
+/* ================== INIT ================== */
+renderChecks();
+setupDropZone();
+document.getElementById('reviewer').value = CURRENT_USER;
+document.getElementById('reviewDate').value = new Date().toLocaleDateString('en-NZ',{day:'2-digit',month:'short',year:'numeric'});
+// Sync topbar user pill to CURRENT_USER
+document.getElementById('topbarUser').innerHTML = `<span class="a">${reviewerInitials(CURRENT_USER)}</span><span>${CURRENT_USER}</span>`;
+</script>
+</body>
+</html>
