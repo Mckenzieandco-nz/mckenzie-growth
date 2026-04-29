@@ -849,10 +849,9 @@ const DEFAULT_CHECK_PROMPTS = {
 };
 
 const DEFAULT_CONFIG = {
-  apiKey:'',
+  mockMode:false,                      // false = call /api/qaReview; true = client-side simulation
   model:'claude-opus-4-7',
-  maxTokens:4096,
-  temperature:0.2,
+  maxTokens:16000,
   systemPrompt:DEFAULT_SYSTEM_PROMPT,
   checkPrompts:{...DEFAULT_CHECK_PROMPTS},
   adminPasswordHash:''
@@ -867,7 +866,9 @@ function loadConfig(){
 function saveConfig(c){localStorage.setItem('mck-qa-config',JSON.stringify(c));}
 let CONFIG = loadConfig();
 
-function isLive(){return CONFIG.apiKey && CONFIG.apiKey.startsWith('sk-ant-');}
+/* Live mode = call the backend endpoint. Mock mode = client-side simulation
+   (useful for offline dev or when ANTHROPIC_API_KEY isn't configured server-side). */
+function isLive(){return !CONFIG.mockMode;}
 
 /* Tiny non-cryptographic hash — prototype only. NOT real auth. */
 function hashPin(s){
@@ -1201,9 +1202,24 @@ function handleFileSelect(e){
 }
 
 function setFile(f){
-  uploadedFile = {name:f.name, size:f.size, type:f.type};
+  // Keep the File object so we can read its bytes when calling the live API.
+  uploadedFile = {name:f.name, size:f.size, type:f.type, file:f};
   renderFileList();
   autoDetectProject(f.name);
+}
+
+/* Read a File / Blob as base64 (without the data: prefix). */
+function fileToBase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      const i = dataUrl.indexOf(',');
+      resolve(i >= 0 ? dataUrl.slice(i + 1) : dataUrl);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 /* Project number extraction — tries common McK / NZ engineering formats from filename.
@@ -1341,42 +1357,63 @@ function submitPackageReview(){
     activeReview = null;
     renderPackageResults(packageId);
     btn.disabled = false;
+  }).catch(err=>{
+    btn.disabled = false;
+    const panel = document.getElementById('resultsPanel');
+    panel.innerHTML = `
+      <div class="results-empty">
+        <div class="eico" style="opacity:.6">⚠️</div>
+        <div class="etitle">Package review failed</div>
+        <div class="edesc" style="max-width:520px">${escapeHtml(err.message || String(err))}</div>
+        <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+          <button class="secondary" onclick="newReview()">Try again</button>
+          <button class="secondary" onclick="switchView('admin')">Open Admin settings</button>
+        </div>
+      </div>`;
   });
 }
 
-function runPackageReview(opts){
+async function runPackageReview(opts){
   const {files, packageId, packageName, purpose, context, checks, projectNumber, projectName, reviewer} = opts;
+  const live = isLive();
   const panel = document.getElementById('resultsPanel');
   panel.innerHTML = `
     <div class="running-state">
       <div class="spinner"></div>
-      <h3>Reviewing package "${escapeHtml(packageName)}" <span class="live-badge ${isLive()?'live':'mock'}">${isLive()?'● Live':'● Mock'}</span></h3>
-      <p>Running ${checks.length} check${checks.length>1?'s':''} across ${files.length} file${files.length>1?'s':''}</p>
+      <h3>Reviewing package "${escapeHtml(packageName)}" <span class="live-badge ${live?'live':'mock'}">${live?'● Live · '+CONFIG.model:'● Mock'}</span></h3>
+      <p>Running ${checks.length} check${checks.length>1?'s':''} across ${files.length} file${files.length>1?'s':''}${live?' — each file goes to Claude one at a time':''}</p>
       <div class="pkg-progress-bar"><div class="pkg-progress-fill" id="pkgProgFill" style="width:0%"></div></div>
       <div class="pkg-progress-meta"><span id="pkgProgLabel">Starting…</span><span id="pkgProgCount">0 / ${files.length}</span></div>
+      <div id="pkgErrors" style="margin-top:12px;font-size:.7rem;color:var(--red);text-align:left;max-width:480px;margin-left:auto;margin-right:auto"></div>
     </div>`;
 
   const fill = document.getElementById('pkgProgFill');
   const lbl = document.getElementById('pkgProgLabel');
   const cnt = document.getElementById('pkgProgCount');
+  const errEl = document.getElementById('pkgErrors');
 
-  return new Promise(resolve=>{
-    const results = [];
-    let i = 0;
-    const stepMs = Math.max(180, Math.min(450, Math.round(8000/files.length)));
-    const tick = ()=>{
-      if(i>=files.length){
-        fill.style.width = '100%';
-        lbl.textContent = 'Compiling package summary…';
-        setTimeout(()=>resolve(results),500);
-        return;
+  const results = [];
+  const errors = [];
+  const stepMs = Math.max(180, Math.min(450, Math.round(8000/files.length)));
+
+  for(let i=0; i<files.length; i++){
+    const f = files[i];
+    lbl.textContent = `Reviewing ${f.path}…`;
+    cnt.textContent = `${i+1} / ${files.length}`;
+    fill.style.width = ((i+1)/files.length*100)+'%';
+    try {
+      let review;
+      if(live){
+        review = await callBackendReview({
+          fileObj: f.file,
+          file: {name:f.name, size:f.size, type:f.file.type},
+          purpose, context, checks, projectNumber, projectName, version:1, reviewer
+        });
+      } else {
+        const fakeFile = {name:f.name, size:f.size, type:f.file.type};
+        review = generateReview(fakeFile, purpose, context, checks, projectNumber, projectName, 1, reviewer);
+        await new Promise(r => setTimeout(r, stepMs));
       }
-      const f = files[i];
-      lbl.textContent = `Reviewing ${f.path}…`;
-      cnt.textContent = `${i+1} / ${files.length}`;
-      fill.style.width = ((i+1)/files.length*100)+'%';
-      const fakeFile = {name:f.name, size:f.size, type:f.file.type};
-      const review = generateReview(fakeFile, purpose, context, checks, projectNumber, projectName, 1, reviewer);
       review.docId = review.id;
       review.version = 1;
       review.packageId = packageId;
@@ -1384,11 +1421,19 @@ function runPackageReview(opts){
       review.packagePath = f.path;
       review.fileCategory = f.category;
       results.push(review);
-      i++;
-      setTimeout(tick, stepMs);
-    };
-    setTimeout(tick, 300);
-  });
+    } catch(err){
+      errors.push(`${f.path}: ${err.message || err}`);
+      if(errEl) errEl.innerHTML = errors.map(e => '⚠️ ' + escapeHtml(e)).join('<br>');
+    }
+  }
+
+  fill.style.width = '100%';
+  lbl.textContent = errors.length ? `Compiled with ${errors.length} error${errors.length>1?'s':''}` : 'Compiling package summary…';
+  await new Promise(r => setTimeout(r, 500));
+  if(!results.length){
+    throw new Error('All files failed: ' + errors.join('; '));
+  }
+  return results;
 }
 
 function getPackage(packageId){
@@ -1521,43 +1566,117 @@ function exportPackage(packageId){
 }
 
 function runAIReview(file, purpose, context, checks, projectNumber, projectName, version, reviewer){
-  // Simulated AI review — animated progress then mocked but realistic results.
-  const steps = [
-    'Parsing document structure…',
-    'Analysing content against purpose…',
-    'Running selected QA checks…',
-    'Compiling findings and score…'
-  ];
+  const live = isLive();
+  const steps = live
+    ? ['Uploading document to AI…', 'Analysing content against purpose…', 'Running selected QA checks…', 'Compiling findings and score…']
+    : ['Parsing document structure…', 'Analysing content against purpose…', 'Running selected QA checks…', 'Compiling findings and score…'];
   const panel = document.getElementById('resultsPanel');
   panel.innerHTML = `
     <div class="running-state">
       <div class="spinner"></div>
-      <h3>Reviewing "${escapeHtml(file.name)}" <span class="live-badge ${isLive()?'live':'mock'}">${isLive()?'● Live · '+CONFIG.model:'● Mock'}</span></h3>
-      <p>Running ${checks.length} check${checks.length>1?'s':''}${isLive()?' via Claude':' (mock — set API key in Admin to go live)'}</p>
+      <h3>Reviewing "${escapeHtml(file.name)}" <span class="live-badge ${live?'live':'mock'}">${live?'● Live · '+CONFIG.model:'● Mock'}</span></h3>
+      <p>Running ${checks.length} check${checks.length>1?'s':''}${live?' via Claude':' (mock mode — toggle off in Admin to go live)'}</p>
       <div class="running-steps" id="runSteps">
         ${steps.map((s,i)=>`<div class="rs-step" data-i="${i}"><span class="rs-ico"></span>${s}</div>`).join('')}
       </div>
     </div>`;
 
-  return new Promise(resolve=>{
-    const rs = panel.querySelectorAll('.rs-step');
-    let i = 0;
-    rs[0].classList.add('active');
-    const tick = ()=>{
-      if(i>0)rs[i-1].classList.remove('active'),rs[i-1].classList.add('done');
-      if(i<rs.length)rs[i].classList.add('active');
-      i++;
-      if(i<=rs.length)setTimeout(tick,1800);
-      else{
-        setTimeout(()=>{
-          rs[rs.length-1].classList.remove('active');
-          rs[rs.length-1].classList.add('done');
-          resolve(generateReview(file,purpose,context,checks,projectNumber,projectName,version,reviewer));
-        },600);
-      }
-    };
-    setTimeout(tick,600);
+  // Animate steps in parallel with the actual work (live) or as the only timing source (mock).
+  const rs = panel.querySelectorAll('.rs-step');
+  let stepI = 0;
+  rs[0].classList.add('active');
+  const advanceStep = ()=>{
+    if(stepI < rs.length){
+      if(stepI > 0){ rs[stepI-1].classList.remove('active'); rs[stepI-1].classList.add('done'); }
+      rs[stepI].classList.add('active');
+      stepI++;
+    }
+  };
+  const finishSteps = ()=>{
+    while(stepI < rs.length){ advanceStep(); }
+    if(rs.length){ rs[rs.length-1].classList.remove('active'); rs[rs.length-1].classList.add('done'); }
+  };
+
+  if(!live){
+    // Pure simulation
+    return new Promise(resolve => {
+      const tick = ()=>{ advanceStep(); if(stepI < rs.length) setTimeout(tick, 1800); else setTimeout(()=>{ finishSteps(); resolve(generateReview(file, purpose, context, checks, projectNumber, projectName, version, reviewer)); }, 600); };
+      setTimeout(tick, 600);
+    });
+  }
+
+  // Live mode — call the backend. The animation just paces while we wait.
+  const stepInterval = setInterval(advanceStep, 2200);
+  return callBackendReview({ file, purpose, context, checks, projectNumber, projectName, version, reviewer })
+    .then(review => { clearInterval(stepInterval); finishSteps(); return review; })
+    .catch(err => {
+      clearInterval(stepInterval);
+      panel.innerHTML = `
+        <div class="results-empty">
+          <div class="eico" style="opacity:.6">⚠️</div>
+          <div class="etitle">Live AI review failed</div>
+          <div class="edesc" style="max-width:520px">${escapeHtml(err.message || String(err))}</div>
+          <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+            <button class="secondary" onclick="newReview()">Try again</button>
+            <button class="secondary" onclick="switchView('admin')">Open Admin settings</button>
+          </div>
+        </div>`;
+      throw err;
+    });
+}
+
+async function callBackendReview(opts){
+  const { fileObj, file: fileMeta, purpose, context, checks, projectNumber, projectName, version, reviewer } = opts;
+  // Resolve the File object — explicit fileObj wins, otherwise fall back to the global uploadedFile.
+  const file = fileObj || (uploadedFile && uploadedFile.file);
+  if(!file){
+    throw new Error('No file to upload. Pick the file again.');
+  }
+  const meta = fileMeta || { name: file.name, size: file.size, type: file.type };
+  const fileBase64 = await fileToBase64(file);
+
+  const resp = await fetch('/api/qaReview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      fileBase64,
+      fileName: meta.name,
+      mimeType: meta.type,
+      projectNumber, projectName, purpose, context, checks, reviewer, version,
+      systemPrompt: CONFIG.systemPrompt,
+      checkPrompts: CONFIG.checkPrompts,
+      model: CONFIG.model,
+      maxTokens: CONFIG.maxTokens,
+    }),
   });
+  if(!resp.ok){
+    let msg;
+    try { const j = await resp.json(); msg = j.error || JSON.stringify(j); } catch { msg = await resp.text(); }
+    throw new Error(`Backend returned ${resp.status}: ${msg}`);
+  }
+  const data = await resp.json();
+  // Wrap the AI response into the full review object shape the frontend expects.
+  return {
+    id: 'r_'+Date.now()+'_'+Math.floor(Math.random()*10000),
+    fileName: meta.name,
+    fileSize: meta.size,
+    projectNumber: projectNumber || null,
+    projectName: projectName || null,
+    purpose,
+    context: context || '',
+    checks,
+    breakdown: data.breakdown || {},
+    issues: (data.issues || []).map((iss, idx) => ({
+      ...iss,
+      id: 'i_'+Date.now()+'_'+idx+'_'+Math.floor(Math.random()*10000),
+      status: 'open',
+    })),
+    overall: data.overall,
+    reviewer: reviewer || CURRENT_USER,
+    date: new Date().toISOString(),
+    aiModel: data.model,
+    aiUsage: data.usage,
+  };
 }
 
 function generateReview(file, purpose, context, checks, projectNumber, projectName, version, reviewer){
@@ -2440,7 +2559,7 @@ function unlockAdmin(){
 }
 
 function resetAdminPassword(){
-  if(!confirm('This will clear the admin password AND all admin settings (API key, prompts, model). Reviews will be kept. Continue?'))return;
+  if(!confirm('This will clear the admin password AND all admin settings (prompts, model, mock-mode toggle). Reviews will be kept. The server-side ANTHROPIC_API_KEY is unaffected. Continue?'))return;
   CONFIG = {...DEFAULT_CONFIG};
   saveConfig(CONFIG);
   sessionStorage.removeItem('mck-qa-admin-unlocked');
@@ -2466,40 +2585,40 @@ function adminPanelHtml(){
     <!-- AI PROVIDER -->
     <div class="admin-section">
       <h3>🤖 AI Provider</h3>
-      <p class="sec-sub">Anthropic Claude is used for QA reviews. The key is stored in browser localStorage — wire this to a backend in production.</p>
+      <p class="sec-sub">Reviews are processed by Claude via the backend at <code>/api/qaReview</code>. The Anthropic API key is set server-side as the <code>ANTHROPIC_API_KEY</code> environment variable in Azure SWA → Configuration — never in the browser.</p>
 
       <div class="field">
-        <label>Anthropic API Key</label>
+        <label>Backend status</label>
         <div class="key-row">
-          <div class="field"><input type="password" id="cfgApiKey" placeholder="sk-ant-api03-…" value="${escapeHtml(CONFIG.apiKey)}" autocomplete="off"/></div>
-          <button class="secondary" onclick="togglePwd('cfgApiKey')" type="button">👁 Show</button>
+          <div class="field" style="flex:1">
+            <div id="backendStatus" class="test-status info" style="display:block">Click <strong>Test</strong> to ping the backend.</div>
+          </div>
           <button class="secondary" onclick="testConnection()">⚡ Test</button>
         </div>
-        <div class="hint">Format: sk-ant-… — generate at console.anthropic.com</div>
-        <div id="testResult" class="test-status"></div>
       </div>
 
-      <div class="field-row" style="margin-top:10px">
+      <div class="field" style="margin-top:14px">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <input type="checkbox" id="cfgMockMode" ${CONFIG.mockMode?'checked':''} style="accent-color:var(--moss);width:16px;height:16px"/>
+          <span>Mock mode (don't call the backend — use client-side simulation)</span>
+        </label>
+        <div class="hint">Useful for offline development or when the backend isn't deployed yet. Default: off (live).</div>
+      </div>
+
+      <div class="field-row" style="margin-top:14px">
         <div class="field">
           <label>Model</label>
           <select id="cfgModel">
-            <option value="claude-opus-4-7" ${CONFIG.model==='claude-opus-4-7'?'selected':''}>Claude Opus 4.7 — most capable</option>
+            <option value="claude-opus-4-7" ${CONFIG.model==='claude-opus-4-7'?'selected':''}>Claude Opus 4.7 — most capable (recommended)</option>
             <option value="claude-sonnet-4-6" ${CONFIG.model==='claude-sonnet-4-6'?'selected':''}>Claude Sonnet 4.6 — balanced</option>
-            <option value="claude-haiku-4-5-20251001" ${CONFIG.model==='claude-haiku-4-5-20251001'?'selected':''}>Claude Haiku 4.5 — fastest / cheapest</option>
+            <option value="claude-haiku-4-5" ${CONFIG.model==='claude-haiku-4-5'?'selected':''}>Claude Haiku 4.5 — fastest / cheapest</option>
           </select>
         </div>
         <div class="field">
           <label>Max output tokens</label>
           <input type="text" id="cfgMaxTokens" value="${CONFIG.maxTokens}"/>
+          <div class="hint">Capped server-side at 32 000.</div>
         </div>
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <label>Temperature (0.0 – 1.0)</label>
-          <input type="text" id="cfgTemperature" value="${CONFIG.temperature}"/>
-          <div class="hint">Lower = more deterministic. Recommended 0.1 – 0.3 for QA.</div>
-        </div>
-        <div class="field"></div>
       </div>
     </div>
 
@@ -2598,10 +2717,9 @@ function resetCheckPrompts(){
 
 function saveAdminSettings(){
   const newCfg = {
-    apiKey: document.getElementById('cfgApiKey').value.trim(),
+    mockMode: document.getElementById('cfgMockMode').checked,
     model: document.getElementById('cfgModel').value,
-    maxTokens: parseInt(document.getElementById('cfgMaxTokens').value)||4096,
-    temperature: Math.max(0,Math.min(1,parseFloat(document.getElementById('cfgTemperature').value)||0.2)),
+    maxTokens: Math.min(Math.max(parseInt(document.getElementById('cfgMaxTokens').value)||16000, 1024), 32000),
     systemPrompt: document.getElementById('cfgSystemPrompt').value,
     checkPrompts: {},
     adminPasswordHash: CONFIG.adminPasswordHash
@@ -2623,17 +2741,37 @@ function saveAdminSettings(){
   renderAdmin();
 }
 
-function testConnection(){
-  const key = document.getElementById('cfgApiKey').value.trim();
-  const r = document.getElementById('testResult');
-  if(!key){r.className='test-status err';r.textContent='Enter an API key first.';return;}
-  if(!key.startsWith('sk-ant-')){r.className='test-status err';r.textContent='Doesn\u2019t look like an Anthropic key — should start with sk-ant-';return;}
-  r.className='test-status info';r.textContent='Testing…';
-  // We can't actually call the Anthropic API from a static page (CORS). Simulate.
-  setTimeout(()=>{
-    r.className='test-status ok';
-    r.innerHTML = '✓ Key format valid. <strong>Note:</strong> direct browser → Anthropic calls are blocked by CORS — wire a backend proxy at <code>/api/qa-review</code> to use the key for real reviews.';
-  },800);
+async function testConnection(){
+  const r = document.getElementById('backendStatus');
+  r.className='test-status info';r.style.display='block';r.textContent='Pinging /api/qaReview…';
+  try {
+    const resp = await fetch('/api/qaReview', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({})
+    });
+    if(resp.status === 400){
+      r.className='test-status ok';
+      r.innerHTML = '✓ Backend reachable and ANTHROPIC_API_KEY is configured. Live mode is ready.';
+    } else if(resp.status === 503){
+      const j = await resp.json().catch(()=>({}));
+      r.className='test-status err';
+      r.innerHTML = '⚠️ Backend reachable but not configured: ' + escapeHtml(j.error || 'set ANTHROPIC_API_KEY in Azure SWA → Configuration.');
+    } else if(resp.status === 401 || resp.status === 403){
+      r.className='test-status err';
+      r.innerHTML = '⚠️ Not authenticated. Sign in via AAD and try again.';
+    } else if(resp.status === 404){
+      r.className='test-status err';
+      r.innerHTML = '⚠️ <code>/api/qaReview</code> not found. Has the backend been deployed?';
+    } else {
+      const txt = await resp.text();
+      r.className='test-status err';
+      r.innerHTML = '⚠️ Unexpected response (' + resp.status + '): ' + escapeHtml(txt.slice(0,200));
+    }
+  } catch(err){
+    r.className='test-status err';
+    r.textContent = 'Network error: ' + err.message;
+  }
 }
 
 function exportAllReviews(){
