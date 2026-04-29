@@ -2765,7 +2765,7 @@ async function testConnection(){
     if(j.anthropicError && j.anthropicError.type) html += `<br>Anthropic error type: <code>${escapeHtml(j.anthropicError.type)}</code>`;
     if(j.keyInfo){
       const ki = j.keyInfo;
-      html += `<br><span style="font-size:.66rem">Key in Azure: length ${ki.trimmedLength||0}, starts <code>${escapeHtml(ki.firstChars||'(empty)')}</code>${ki.hadWhitespace?' (had stray whitespace — trimmed)':''}, prefix valid: ${ki.startsCorrectly?'yes':'NO'}</span>`;
+      html += `<br><span style="font-size:.66rem">Key in Azure: length ${ki.trimmedLength||0}, starts <code>${escapeHtml(ki.firstChars||'(empty)')}</code>…ends <code>${escapeHtml(ki.lastChars||'')}</code>${ki.hadWhitespace?' (had stray whitespace — trimmed)':''}</span>`;
     }
     if(resp.status === 404){
       html += `<br><strong>Endpoint not found</strong> — the deploy may not have completed yet.`;
