@@ -1,10 +1,7 @@
 {
   "name": "mckenzie-qa-functionapp",
   "version": "1.0.0",
-  "description": "Dedicated Azure Function App for QA review endpoints (separated from SWA managed functions to use a dedicated egress IP that Anthropic accepts).",
+  "description": "Dedicated Azure Function App for QA review endpoints. Uses Node built-in https module only — no npm dependencies, so deploys cleanly without node_modules concerns.",
   "main": "index.js",
-  "dependencies": {
-    "@anthropic-ai/sdk": "^0.88.0",
-    "mammoth": "^1.8.0"
-  }
+  "dependencies": {}
 }

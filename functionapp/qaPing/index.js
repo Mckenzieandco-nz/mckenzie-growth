@@ -1,16 +1,13 @@
 /**
- * /api/qaPing — diagnostic endpoint. Runs a minimal Claude call from inside
- * Azure and returns the full result (or full error detail). Use this to
- * confirm the ANTHROPIC_API_KEY env var works from the Functions runtime.
+ * /api/qaPing — diagnostic endpoint. Calls Anthropic from inside Azure using
+ * Node's built-in https module only (no SDK dependency). Returns key metadata
+ * + raw HTTPS result.
  *
- * No body required. GET or POST works.
+ * No dependencies on npm packages — runs without node_modules.
  */
 
-const { Anthropic } = require('@anthropic-ai/sdk');
 const https = require('https');
 
-/* Raw HTTPS call to Anthropic — matches the PowerShell test exactly.
-   Bypasses the SDK so we can isolate SDK-related issues from network issues. */
 function rawAnthropicCall(apiKey) {
   return new Promise((resolve) => {
     const body = JSON.stringify({
@@ -45,7 +42,6 @@ module.exports = async function (context, req) {
   const rawKey = process.env.ANTHROPIC_API_KEY;
   const cleanedKey = (rawKey || '').trim();
 
-  // Step 1: env var diagnostics — never reveal the secret, just metadata
   const keyInfo = rawKey ? {
     rawLength: rawKey.length,
     trimmedLength: cleanedKey.length,
@@ -71,62 +67,34 @@ module.exports = async function (context, req) {
       body: {
         ok: false,
         stage: 'env_var',
-        error: `ANTHROPIC_API_KEY value does not start with "sk-ant-". First 12 chars: "${keyInfo.firstChars}". Re-paste the key in Azure Configuration.`,
+        error: `ANTHROPIC_API_KEY value does not start with "sk-ant-".`,
         keyInfo,
       },
     };
     return;
   }
 
-  // Step 2: try raw HTTPS first — bypasses the SDK, matches PowerShell exactly.
   const rawResult = await rawAnthropicCall(cleanedKey);
   let rawParsed = null;
   try { rawParsed = JSON.parse(rawResult.body); } catch { /* leave null */ }
 
-  // Step 3: try the SDK — same call shape, but goes through @anthropic-ai/sdk.
-  let sdkResult = { ok: false };
-  try {
-    const client = new Anthropic({ apiKey: cleanedKey });
-    const resp = await client.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 50,
-      messages: [{ role: 'user', content: 'hi' }],
-    });
-    const text = (resp.content.find(b => b.type === 'text') || {}).text || '';
-    sdkResult = { ok: true, model: resp.model, reply: text.trim() };
-  } catch (err) {
-    sdkResult = {
-      ok: false,
-      error: err.message || 'Unknown error',
-      errorClass: err && err.constructor ? err.constructor.name : typeof err,
-      status: err.status,
-      requestId: err.request_id || (err.headers && (err.headers['request-id'] || err.headers['x-request-id'])),
-      anthropicError: err.error,
-    };
-  }
-
-  const overallOk = rawResult.status === 200 || sdkResult.ok;
-  const sdkVersion = (() => {
-    try { return require('@anthropic-ai/sdk/package.json').version; } catch { return 'unknown'; }
-  })();
-
+  const ok = rawResult.status === 200;
   const out = {
-    ok: overallOk,
+    ok,
     keyInfo,
-    sdkVersion,
     rawHttps: {
-      ok: rawResult.status === 200,
+      ok,
       status: rawResult.status,
       requestId: rawResult.headers && rawResult.headers['request-id'],
       reply: rawParsed && rawParsed.content ? (rawParsed.content[0] || {}).text : null,
       bodySnippet: rawResult.body ? rawResult.body.slice(0, 300) : null,
       error: rawResult.error || null,
     },
-    sdk: sdkResult,
+    sdk: { ok: ok, skipped: true, reason: 'Using built-in https module only; no SDK installed' },
   };
-  context.log.info('qaPing result:', JSON.stringify(out));
+  context.log.info('qaPing result:', JSON.stringify({ ok: out.ok, status: rawResult.status, requestId: out.rawHttps.requestId }));
   context.res = {
-    status: overallOk ? 200 : 502,
+    status: ok ? 200 : 502,
     headers: { 'Content-Type': 'application/json' },
     body: out,
   };

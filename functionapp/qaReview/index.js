@@ -1,32 +1,14 @@
 /**
  * /api/qaReview — runs an AI QA review on an uploaded document via Claude.
  *
- * Body shape (JSON):
- * {
- *   fileBase64: string,         // base64 of the file bytes
- *   fileName: string,
- *   mimeType?: string,
- *   projectNumber?: string,
- *   projectName?: string,
- *   purpose: string,
- *   context?: string,           // free-text reviewer context
- *   checks: string[],           // QA check IDs (see QA_CHECKS keys below)
- *   reviewer?: string,
- *   version?: number,
- *   systemPrompt?: string,      // template override from Admin tab
- *   checkPrompts?: { [id]: string },
- *   model?: string,             // whitelisted Claude model alias
- *   maxTokens?: number          // capped server-side
- * }
+ * Uses ONLY Node's built-in https module — no @anthropic-ai/sdk or mammoth
+ * dependency, so deployment doesn't depend on node_modules being present.
  *
- * Returns: { overall, breakdown, issues, model, usage }
- *
- * Auth: ANTHROPIC_API_KEY must be set in Azure SWA Configuration. The frontend
- * never sees the key.
+ * Supported file types: PDF (sent natively as document block), plain text
+ * (.txt, .md, .csv). DOCX is not supported in this build — convert to PDF.
  */
 
-const { Anthropic } = require('@anthropic-ai/sdk');
-const mammoth = require('mammoth');
+const https = require('https');
 
 // ---------- Constants ----------
 
@@ -37,7 +19,7 @@ const ALLOWED_MODELS = new Set([
 ]);
 
 const MAX_TOKENS_CAP = 32000;
-const MAX_FILE_BYTES = 25 * 1024 * 1024;   // 25 MB raw file
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
 const QA_CHECKS = {
   grammar:      { title: 'Grammar & Spelling',     desc: 'Typos, subject-verb agreement, punctuation' },
@@ -54,7 +36,6 @@ const QA_CHECKS = {
 
 const CHECK_IDS = Object.keys(QA_CHECKS);
 
-// JSON Schema for the structured output. Matches the frontend's review shape.
 const REVIEW_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -98,7 +79,7 @@ GUIDELINES
 - Calibrate the overall score: 90+ = ready to submit; 75-89 = minor revisions; 60-74 = revise before submitting; <60 = significant rework.
 
 OUTPUT
-You will receive document metadata, the QA checks to run, and the document content (as a PDF document block or extracted text). Return JSON that matches the supplied schema.
+Return JSON that matches the supplied schema.
 
 For each issue:
 - "categoryId" must be one of: grammar, clarity, technical, brand, consistency, completeness, citations, compliance, audience, structure
@@ -107,7 +88,7 @@ For each issue:
 - "quote" is a short verbatim excerpt or location pointer (e.g. "§3.2") so the author can find it
 - "fix" is specific and actionable
 
-For "breakdown", return a 0-100 integer for each check that was requested. Omit checks that were not requested.
+For "breakdown", return a 0-100 integer for each requested check. Omit checks not requested.
 "overall" is the weighted submission readiness score, 0-100.`;
 
 // ---------- Helpers ----------
@@ -116,14 +97,19 @@ function fillTemplate(tpl, vars) {
   return tpl.replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined && vars[k] !== null ? String(vars[k]) : m));
 }
 
-async function extractDocument(fileName, mimeType, base64) {
+function badRequest(message, status = 400) {
+  const e = new Error(message);
+  e.status = status;
+  return e;
+}
+
+function extractDocument(fileName, mimeType, base64) {
   const buffer = Buffer.from(base64, 'base64');
   if (buffer.byteLength > MAX_FILE_BYTES) {
-    throw Object.assign(new Error('File exceeds 25 MB limit'), { status: 413 });
+    throw badRequest('File exceeds 25 MB limit', 413);
   }
   const lower = (fileName || '').toLowerCase();
 
-  // PDFs go to Claude as a document block — native, no client-side parsing.
   if (lower.endsWith('.pdf') || mimeType === 'application/pdf') {
     return {
       kind: 'pdf',
@@ -135,22 +121,13 @@ async function extractDocument(fileName, mimeType, base64) {
     };
   }
 
-  // DOCX → extract via mammoth.
-  if (lower.endsWith('.docx')) {
-    const r = await mammoth.extractRawText({ buffer });
-    return { kind: 'text', text: r.value };
-  }
-
-  // Plain text-like — decode utf-8.
   if (lower.endsWith('.txt') || lower.endsWith('.md') || lower.endsWith('.csv') || (mimeType || '').startsWith('text/')) {
     return { kind: 'text', text: buffer.toString('utf-8') };
   }
 
-  // Best-effort fallback. .doc / .rtf / .odt aren't well-supported by browsers
-  // anyway — give a clear hint instead of returning garbage.
-  throw Object.assign(new Error(
-    `Unsupported file type "${lower.split('.').pop() || 'unknown'}". Supported: PDF, DOCX, TXT. Convert .doc/.rtf/.odt to PDF first.`
-  ), { status: 400 });
+  throw badRequest(
+    `Unsupported file type "${lower.split('.').pop() || 'unknown'}". This deploy supports PDF and plain text only. Convert .docx/.doc/.rtf/.odt to PDF first.`
+  );
 }
 
 function buildUserContent(extracted, meta, checksList) {
@@ -172,7 +149,6 @@ ${checksList}
     blocks.push(extracted.block);
     blocks.push({ type: 'text', text: 'Produce the JSON QA review per the schema.' });
   } else {
-    // Text — inline. Trim if absurdly long; Claude has 1M context but we're paying per token.
     const truncated = extracted.text.length > 600000 ? extracted.text.slice(0, 600000) + '\n\n[…truncated]' : extracted.text;
     blocks.push({
       type: 'text',
@@ -182,34 +158,58 @@ ${checksList}
   return blocks;
 }
 
-function badRequest(message, status = 400) {
-  const e = new Error(message);
-  e.status = status;
-  return e;
+/* Raw HTTPS POST to Anthropic /v1/messages.
+   Resolves with parsed JSON on 2xx, rejects with Error (status/requestId/body) on non-2xx. */
+function callAnthropic(apiKey, payload) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify(payload);
+    const req = https.request({
+      hostname: 'api.anthropic.com',
+      path: '/v1/messages',
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+      timeout: 290000,   // just under Function App's 5-min timeout
+    }, (res) => {
+      let chunks = '';
+      res.on('data', c => { chunks += c; });
+      res.on('end', () => {
+        let parsed;
+        try { parsed = JSON.parse(chunks); } catch { parsed = { _rawBody: chunks }; }
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve({ data: parsed, status: res.statusCode, requestId: res.headers['request-id'] });
+        } else {
+          const apiMsg = parsed && parsed.error ? (parsed.error.message || JSON.stringify(parsed.error)) : chunks.slice(0, 500);
+          const err = new Error(`Anthropic ${res.statusCode}: ${apiMsg}`);
+          err.status = res.statusCode;
+          err.requestId = res.headers['request-id'];
+          err.body = parsed;
+          reject(err);
+        }
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(new Error('timeout')); });
+    req.write(body);
+    req.end();
+  });
 }
 
 // ---------- Handler ----------
 
 module.exports = async function (context, req) {
   try {
-    // Trim defensively — pasting into Azure Configuration sometimes picks up
-    // whitespace or a stray newline, which makes Anthropic's edge layer reject
-    // the key with an opaque "Request not allowed" 403.
     const apiKey = (process.env.ANTHROPIC_API_KEY || '').trim();
     if (!apiKey) {
-      context.res = {
-        status: 503,
-        headers: { 'Content-Type': 'application/json' },
-        body: { error: 'ANTHROPIC_API_KEY is not configured on the server. Set it in Azure SWA → Configuration.' },
-      };
+      context.res = { status: 503, headers: { 'Content-Type': 'application/json' }, body: { error: 'ANTHROPIC_API_KEY is not configured on the server.' } };
       return;
     }
     if (!apiKey.startsWith('sk-ant-')) {
-      context.res = {
-        status: 502,
-        headers: { 'Content-Type': 'application/json' },
-        body: { error: 'ANTHROPIC_API_KEY value is not a valid Anthropic key (must start with "sk-ant-"). Re-paste in Azure Configuration.' },
-      };
+      context.res = { status: 502, headers: { 'Content-Type': 'application/json' }, body: { error: 'ANTHROPIC_API_KEY value is not a valid Anthropic key.' } };
       return;
     }
 
@@ -233,11 +233,8 @@ module.exports = async function (context, req) {
     const model = ALLOWED_MODELS.has(requestedModel) ? requestedModel : 'claude-opus-4-7';
     const maxTokens = Math.min(Math.max(parseInt(requestedMaxTokens) || 16000, 1024), MAX_TOKENS_CAP);
 
-    // Extract / prepare document
-    const extracted = await extractDocument(fileName, mimeType, fileBase64);
+    const extracted = extractDocument(fileName, mimeType, fileBase64);
 
-    // Render system prompt — preserves admin placeholders for backward compat.
-    // For maximum cache hit rate, prefer the default prompt (no placeholders).
     const checksList = validChecks.map(id => {
       const c = QA_CHECKS[id];
       const extra = checkPrompts && checkPrompts[id] ? '\n  Additional guidance: ' + checkPrompts[id] : '';
@@ -263,10 +260,7 @@ module.exports = async function (context, req) {
       checksList
     );
 
-    const client = new Anthropic({ apiKey });   // already trimmed above
-
-    // Stream to avoid HTTP timeouts on long reviews; collect via finalMessage().
-    const stream = client.messages.stream({
+    const payload = {
       model,
       max_tokens: maxTokens,
       thinking: { type: 'adaptive' },
@@ -274,27 +268,24 @@ module.exports = async function (context, req) {
         effort: 'high',
         format: { type: 'json_schema', schema: REVIEW_SCHEMA },
       },
-      // Top-level cache_control auto-caches the last cacheable block (system prompt)
-      // — repeated calls with the same system prompt + model hit the cache.
       cache_control: { type: 'ephemeral' },
       system: renderedSystem,
       messages: [{ role: 'user', content: userContent }],
-    });
+    };
 
-    const finalMessage = await stream.finalMessage();
+    const result = await callAnthropic(apiKey, payload);
+    const message = result.data;
 
-    // Extract structured JSON output
-    const textBlock = finalMessage.content.find(b => b.type === 'text');
+    const textBlock = (message.content || []).find(b => b.type === 'text');
     if (!textBlock || !textBlock.text) {
-      throw new Error('Claude returned no text content (stop_reason: ' + finalMessage.stop_reason + ')');
+      throw new Error('Claude returned no text content (stop_reason: ' + message.stop_reason + ')');
     }
 
     let parsed;
     try {
       parsed = JSON.parse(textBlock.text);
     } catch (e) {
-      // Should not happen with structured outputs, but be safe.
-      throw new Error('Claude response was not valid JSON: ' + e.message);
+      throw new Error('Claude response was not valid JSON: ' + e.message + '. First 500 chars: ' + textBlock.text.slice(0, 500));
     }
 
     context.res = {
@@ -302,14 +293,10 @@ module.exports = async function (context, req) {
       headers: { 'Content-Type': 'application/json' },
       body: {
         ...parsed,
-        model: finalMessage.model,
-        usage: {
-          input_tokens: finalMessage.usage.input_tokens,
-          output_tokens: finalMessage.usage.output_tokens,
-          cache_read_input_tokens: finalMessage.usage.cache_read_input_tokens || 0,
-          cache_creation_input_tokens: finalMessage.usage.cache_creation_input_tokens || 0,
-        },
-        stop_reason: finalMessage.stop_reason,
+        model: message.model,
+        usage: message.usage,
+        stop_reason: message.stop_reason,
+        requestId: result.requestId,
       },
     };
   } catch (err) {
@@ -317,21 +304,13 @@ module.exports = async function (context, req) {
       error: err.message || 'Unknown error',
       errorClass: err && err.constructor ? err.constructor.name : typeof err,
       status: err.status,
-      requestId: err.request_id || (err.headers && (err.headers['request-id'] || err.headers['x-request-id'])),
-      anthropicError: err.error,
+      requestId: err.requestId,
+      anthropicError: err.body && err.body.error ? err.body.error : undefined,
     };
     context.log.error('qaReview error:', JSON.stringify(detail), err.stack);
 
-    let status = err.status || 500;
-    if (err instanceof Anthropic.AuthenticationError) status = 401;
-    else if (err instanceof Anthropic.PermissionDeniedError) status = 403;
-    else if (err instanceof Anthropic.BadRequestError) status = 400;
-    else if (err instanceof Anthropic.NotFoundError) status = 404;
-    else if (err instanceof Anthropic.RateLimitError) status = 429;
-    else if (err instanceof Anthropic.APIError) status = err.status || 500;
-
     context.res = {
-      status,
+      status: err.status || 500,
       headers: { 'Content-Type': 'application/json' },
       body: detail,
     };
