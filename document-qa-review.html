@@ -2743,32 +2743,51 @@ function saveAdminSettings(){
 
 async function testConnection(){
   const r = document.getElementById('backendStatus');
-  r.className='test-status info';r.style.display='block';r.textContent='Calling Anthropic from inside Azure (via /api/qaPing)…';
+  r.className='test-status info';r.style.display='block';r.textContent='Running diagnostic (raw HTTPS + SDK) from inside Azure…';
   try {
     const resp = await fetch('/api/qaPing', { method: 'POST' });
     let j;
     try { j = await resp.json(); } catch { j = { error: await resp.text() }; }
 
-    if(resp.status === 200 && j.ok){
-      r.className='test-status ok';
-      const ki = j.keyInfo || {};
-      r.innerHTML = `✓ Live mode ready. Anthropic returned <code>${escapeHtml(j.reply||'?')}</code> via <code>${escapeHtml(j.model||'?')}</code>.<br>
-        <span style="font-size:.66rem;color:var(--muted)">Key length: ${ki.trimmedLength}, prefix: <code>${escapeHtml(ki.firstChars||'')}</code>${ki.hadWhitespace?' · whitespace was trimmed':''}</span>`;
+    if(resp.status === 404){
+      r.className='test-status err';
+      r.innerHTML = '⚠️ <code>/api/qaPing</code> not found — deploy still in progress?';
       return;
     }
 
-    // Failure path — show full diagnostic
-    r.className='test-status err';
-    let html = `⚠️ Status ${resp.status}: <code>${escapeHtml(j.error || '')}</code>`;
-    if(j.requestId) html += `<br>Anthropic request-id: <code>${escapeHtml(j.requestId)}</code>`;
-    if(j.errorClass) html += `<br>Error class: <code>${escapeHtml(j.errorClass)}</code>`;
-    if(j.anthropicError && j.anthropicError.type) html += `<br>Anthropic error type: <code>${escapeHtml(j.anthropicError.type)}</code>`;
-    if(j.keyInfo){
-      const ki = j.keyInfo;
-      html += `<br><span style="font-size:.66rem">Key in Azure: length ${ki.trimmedLength||0}, starts <code>${escapeHtml(ki.firstChars||'(empty)')}</code>…ends <code>${escapeHtml(ki.lastChars||'')}</code>${ki.hadWhitespace?' (had stray whitespace — trimmed)':''}</span>`;
+    const ki = j.keyInfo || {};
+    const raw = j.rawHttps || {};
+    const sdk = j.sdk || {};
+
+    let html = '';
+    // Raw HTTPS line
+    if(raw.ok){
+      html += `<div style="color:var(--moss-dark)">✓ <strong>Raw HTTPS:</strong> ${raw.status} — Anthropic replied <code>${escapeHtml((raw.reply||'').trim().slice(0,40)||'?')}</code></div>`;
+    } else {
+      html += `<div style="color:var(--red)">✗ <strong>Raw HTTPS:</strong> ${raw.status||'no response'}${raw.error?' · '+escapeHtml(raw.error):''}${raw.bodySnippet?' · <code>'+escapeHtml(raw.bodySnippet.slice(0,160))+'</code>':''}${raw.requestId?' · req-id <code>'+escapeHtml(raw.requestId)+'</code>':''}</div>`;
     }
-    if(resp.status === 404){
-      html += `<br><strong>Endpoint not found</strong> — the deploy may not have completed yet.`;
+    // SDK line
+    if(sdk.ok){
+      html += `<div style="color:var(--moss-dark);margin-top:4px">✓ <strong>SDK:</strong> Anthropic replied <code>${escapeHtml((sdk.reply||'').trim().slice(0,40)||'?')}</code> via <code>${escapeHtml(sdk.model||'?')}</code></div>`;
+    } else {
+      html += `<div style="color:var(--red);margin-top:4px">✗ <strong>SDK:</strong> ${sdk.status||'?'}${sdk.errorClass?' · '+escapeHtml(sdk.errorClass):''}${sdk.requestId?' · req-id <code>'+escapeHtml(sdk.requestId)+'</code>':''}<br><span style="font-size:.66rem;display:inline-block;margin-left:18px">${escapeHtml((sdk.error||'').slice(0,260))}</span></div>`;
+    }
+    // Key + SDK version
+    html += `<div style="font-size:.64rem;color:var(--muted);margin-top:6px">Key: ${ki.trimmedLength||0} chars · <code>${escapeHtml(ki.firstChars||'')}</code>…<code>${escapeHtml(ki.lastChars||'')}</code>${ki.hadWhitespace?' (whitespace trimmed)':''}${j.sdkVersion?' · SDK '+escapeHtml(j.sdkVersion):''}</div>`;
+
+    // Verdict
+    if(raw.ok && sdk.ok){
+      r.className='test-status ok';
+      html = '✓ Both paths work. Live mode is ready.<br>' + html;
+    } else if(raw.ok && !sdk.ok){
+      r.className='test-status err';
+      html = '⚠️ <strong>Raw HTTPS works but the SDK fails.</strong> SDK is the problem — most likely a version or header issue. Tell Claude this output.<br>' + html;
+    } else if(!raw.ok && sdk.ok){
+      r.className='test-status err';
+      html = '⚠️ Inconsistent — raw HTTPS fails but SDK works. Tell Claude.<br>' + html;
+    } else {
+      r.className='test-status err';
+      html = '⚠️ <strong>Both raw HTTPS and SDK fail.</strong> Network/IP issue from Azure to Anthropic.<br>' + html;
     }
     r.innerHTML = html;
   } catch(err){
