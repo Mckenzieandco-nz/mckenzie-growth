@@ -2,7 +2,7 @@ const { database } = require('../shared/cosmos');
 
 module.exports = async function (context, req) {
   try {
-    const collections = ['users', 'materials', 'assignments', 'reviews', 'onetoones', 'cpdLog', 'disclosures', 'docs', 'kpis', 'settings'];
+    const collections = ['users', 'materials', 'assignments', 'reviews', 'onetoones', 'cpdLog', 'disclosures', 'docs', 'settings'];
     const result = {};
 
     for (const name of collections) {
