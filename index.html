@@ -1331,12 +1331,8 @@ async function doMicrosoftLogin(){
 function logout(){
   S.currentUser=null;S.adminUnlocked=false;
   updateHeader();updateAdminNav();
-  // Redirect to Azure SWA logout, then back to home
-  if(_useAPI){
-    window.location.href='/.auth/logout?post_logout_redirect_uri=/';
-  }else{
-    showLoginScreen();
-  }
+  // Always redirect to Azure SWA logout to clear the Microsoft session
+  window.location.href='/.auth/logout?post_logout_redirect_uri=/';
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2334,7 +2330,7 @@ function viewMaterial(id){const mat=S.materials.find(m=>m.id===id);if(!mat)retur
 // PUSH COURSES
 // ══════════════════════════════════════════════════════════
 let pushTab='all';
-function openPushModal(matId){const mat=S.materials.find(m=>m.id===matId);if(!mat)return;document.getElementById('push-mat-id').value=matId;document.getElementById('push-mat-preview').innerHTML=`<strong>${TYPE_ICONS[mat.type]||'📄'} ${mat.title}</strong> <span class="badge badge-green">${mat.skill}</span>`;document.getElementById('push-message').value='';document.getElementById('push-due').value='';document.getElementById('push-all-count').textContent=S.users.length;pushTab='all';document.querySelectorAll('#modal-push .tab').forEach((t,i)=>{t.classList.toggle('active',i===0);});document.getElementById('push-target-all').style.display='';document.getElementById('push-target-team').style.display='none';document.getElementById('push-target-individual').style.display='none';const teams=[...new Set(S.users.map(u=>u.team||'No Team'))].sort();document.getElementById('push-team-list').innerHTML=teams.map(t=>`<label class="push-target-btn"><input type="checkbox" value="${t}" checked/><span>${t}</span><span class="text-xs text-muted ml-auto">${S.users.filter(u=>(u.team||'No Team')===t).length}</span></label>`).join('');document.getElementById('push-individual-list').innerHTML=S.users.map(u=>`<label class="push-target-btn"><input type="checkbox" value="${u.id}" checked/><div class="p-avatar" style="width:26px;height:26px;font-size:.65rem">${ini(u.name)}</div><div style="flex:1"><div style="font-weight:600;font-size:.82rem">${u.name}</div><div class="text-xs text-muted">${u.role}</div></div></label>`).join('');document.getElementById('modal-push').classList.add('open');}
+function openPushModal(matId){const mat=S.materials.find(m=>m.id===matId);if(!mat)return;document.getElementById('push-mat-id').value=matId;document.getElementById('push-mat-preview').innerHTML=`<strong>${TYPE_ICONS[mat.type]||'📄'} ${mat.title}</strong> <span class="badge badge-green">${mat.skill}</span>`;document.getElementById('push-message').value='';document.getElementById('push-due').value='';document.getElementById('push-all-count').textContent=S.users.length;pushTab='individual';document.querySelectorAll('#modal-push .tab').forEach((t,i)=>{t.classList.toggle('active',i===2);});document.getElementById('push-target-all').style.display='none';document.getElementById('push-target-team').style.display='none';document.getElementById('push-target-individual').style.display='';const teams=[...new Set(S.users.map(u=>u.team||'No Team'))].sort();document.getElementById('push-team-list').innerHTML=teams.map(t=>`<label class="push-target-btn"><input type="checkbox" value="${t}"/><span>${t}</span><span class="text-xs text-muted ml-auto">${S.users.filter(u=>(u.team||'No Team')===t).length}</span></label>`).join('');document.getElementById('push-individual-list').innerHTML=S.users.map(u=>`<label class="push-target-btn"><input type="checkbox" value="${u.id}"/><div class="p-avatar" style="width:26px;height:26px;font-size:.65rem">${ini(u.name)}</div><div style="flex:1"><div style="font-weight:600;font-size:.82rem">${u.name}</div><div class="text-xs text-muted">${u.role}</div></div></label>`).join('');document.getElementById('modal-push').classList.add('open');}
 function switchPushTab(tab,el){pushTab=tab;document.querySelectorAll('#modal-push .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');document.getElementById('push-target-all').style.display=tab==='all'?'':'none';document.getElementById('push-target-team').style.display=tab==='team'?'':'none';document.getElementById('push-target-individual').style.display=tab==='individual'?'':'none';}
 async function executePush(){
   const matId=document.getElementById('push-mat-id').value;
@@ -2849,6 +2845,18 @@ function renderAdminAccess(el){
   el.innerHTML=`
     <div style="display:grid;gap:24px">
 
+      <!-- Disclosure Contact -->
+      <div>
+        <div class="section-header" style="margin-bottom:12px">
+          <h3>Raise a Concern — Contact Name</h3>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;max-width:480px">
+          <input class="form-input" id="disc-contact-input" style="flex:1;margin:0" placeholder="e.g. James Kitchen" value="${esc(S.disclosureContact||'')}"/>
+          <button class="btn btn-primary" onclick="saveDisclosureContact()">Save</button>
+        </div>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:6px">Shown to staff as: <em>"Your concern is reviewed by <strong>${esc(S.disclosureContact||'your administrator')}</strong>"</em></div>
+      </div>
+
       <!-- Section Visibility -->
       <div>
         <div class="section-header" style="margin-bottom:4px">
@@ -2956,6 +2964,13 @@ function renderAdminAccess(el){
       </div>
 
     </div>`;
+}
+
+function saveDisclosureContact(){
+  const val=document.getElementById('disc-contact-input').value.trim();
+  S.disclosureContact=val;
+  save();renderAdmin();
+  showToast('Disclosure contact saved ✓');
 }
 
 function toggleSection(key){
