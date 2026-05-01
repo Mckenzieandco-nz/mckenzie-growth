@@ -610,16 +610,6 @@ Sarah Chen,Principal Surveyor,surveying,10+,Survey Operations,,95,195,sarah.chen
       <div class="form-group"><label class="form-label">Skill Category</label>
         <select class="form-select" id="mat-skill">
           <option value="General">General</option>
-          <option value="Structural Analysis & Design">Structural Analysis & Design</option>
-          <option value="AutoCAD">AutoCAD</option><option value="Revit / BIM">Revit / BIM</option>
-          <option value="AutoCAD Civil 3D">AutoCAD Civil 3D</option><option value="12d Model">12d Model</option>
-          <option value="GNSS / GPS Surveying">GNSS / GPS Surveying</option>
-          <option value="UAV / Drone Surveys">UAV / Drone Surveys</option>
-          <option value="LiDAR / Terrestrial Scanning">LiDAR / Terrestrial Scanning</option>
-          <option value="Project Management">Project Management</option>
-          <option value="WHS / Safety Legislation">WHS / Safety</option>
-          <option value="Technical Report Writing">Report Writing</option>
-          <option value="Leadership">Leadership</option>
         </select>
       </div>
     </div>
@@ -2277,8 +2267,30 @@ function renderMaterials(){
 }
 function setMatTagState(containerId,values){document.querySelectorAll('#'+containerId+' input[type=checkbox]').forEach(cb=>{cb.checked=(values||[]).includes(cb.value);});}
 function getMatTagState(containerId){return [...document.querySelectorAll('#'+containerId+' input[type=checkbox]:checked')].map(cb=>cb.value);}
-function openUploadModal(){['mat-title','mat-desc','mat-url','mat-duration','mat-edit-id'].forEach(i=>document.getElementById(i).value='');document.getElementById('mat-cpdhours').value='';document.getElementById('mat-type').value='PDF';document.getElementById('mat-skill').value='General';setMatTagState('mat-disc-tags',[]);setMatTagState('mat-sen-tags',[]);document.getElementById('upload-zone-text').textContent='Click to choose file or drag and drop';document.querySelector('#modal-upload .modal-title').textContent='Upload Training Material';document.getElementById('mat-save-btn').textContent='Add to Library';pendingFileData=null;document.getElementById('modal-upload').classList.add('open');}
-function editMaterial(id){const m=S.materials.find(x=>x.id===id);if(!m)return;document.getElementById('mat-edit-id').value=id;document.getElementById('mat-title').value=m.title||'';document.getElementById('mat-desc').value=m.desc||'';document.getElementById('mat-type').value=m.type||'PDF';document.getElementById('mat-skill').value=m.skill||'General';document.getElementById('mat-url').value=m.url||'';document.getElementById('mat-duration').value=m.duration||'';document.getElementById('mat-cpdhours').value=m.cpdHours||'';setMatTagState('mat-disc-tags',m.discTags||[]);setMatTagState('mat-sen-tags',m.senTags||[]);document.getElementById('upload-zone-text').textContent=m.fileName?`${m.fileName}${m.size?' ('+m.size+')':''} — upload a new file to replace`:'Click to choose file or drag and drop';document.querySelector('#modal-upload .modal-title').textContent='Edit Training Material';document.getElementById('mat-save-btn').textContent='Save Changes';pendingFileData=null;document.getElementById('modal-upload').classList.add('open');}
+function populateMatSkillDropdown(selected){
+  const sel=document.getElementById('mat-skill');
+  const cat=activeCatalog();
+  // Collect all skills grouped by discipline → category
+  const groups={};
+  const DISC_NAMES={engineering:'Engineering',surveying:'Surveying'};
+  for(const [disc,cats] of Object.entries(cat)){
+    const label=DISC_NAMES[disc]||disc;
+    for(const [cat,skills] of Object.entries(cats||{})){
+      const key=label+' — '+cat;
+      groups[key]=(groups[key]||[]).concat(skills);
+    }
+  }
+  let html='<option value="General">General</option>';
+  for(const [groupLabel,skills] of Object.entries(groups)){
+    html+=`<optgroup label="${groupLabel}">`;
+    [...new Set(skills)].forEach(s=>{html+=`<option value="${s}" ${s===(selected||'')?'selected':''}>${s}</option>`;});
+    html+='</optgroup>';
+  }
+  sel.innerHTML=html;
+  if(selected)sel.value=selected;
+}
+function openUploadModal(){['mat-title','mat-desc','mat-url','mat-duration','mat-edit-id'].forEach(i=>document.getElementById(i).value='');document.getElementById('mat-cpdhours').value='';document.getElementById('mat-type').value='PDF';populateMatSkillDropdown('General');setMatTagState('mat-disc-tags',[]);setMatTagState('mat-sen-tags',[]);document.getElementById('upload-zone-text').textContent='Click to choose file or drag and drop';document.querySelector('#modal-upload .modal-title').textContent='Upload Training Material';document.getElementById('mat-save-btn').textContent='Add to Library';pendingFileData=null;document.getElementById('modal-upload').classList.add('open');}
+function editMaterial(id){const m=S.materials.find(x=>x.id===id);if(!m)return;document.getElementById('mat-edit-id').value=id;document.getElementById('mat-title').value=m.title||'';document.getElementById('mat-desc').value=m.desc||'';document.getElementById('mat-type').value=m.type||'PDF';populateMatSkillDropdown(m.skill||'General');document.getElementById('mat-url').value=m.url||'';document.getElementById('mat-duration').value=m.duration||'';document.getElementById('mat-cpdhours').value=m.cpdHours||'';setMatTagState('mat-disc-tags',m.discTags||[]);setMatTagState('mat-sen-tags',m.senTags||[]);document.getElementById('upload-zone-text').textContent=m.fileName?`${m.fileName}${m.size?' ('+m.size+')':''} — upload a new file to replace`:'Click to choose file or drag and drop';document.querySelector('#modal-upload .modal-title').textContent='Edit Training Material';document.getElementById('mat-save-btn').textContent='Save Changes';pendingFileData=null;document.getElementById('modal-upload').classList.add('open');}
 function handleFileSelect(e){const file=e.target.files[0];if(!file)return;readFile(file);}
 function handleDragOver(e){e.preventDefault();document.getElementById('upload-zone').classList.add('drag');}
 function handleDrop(e){e.preventDefault();document.getElementById('upload-zone').classList.remove('drag');const file=e.dataTransfer.files[0];if(!file)return;readFile(file);}
